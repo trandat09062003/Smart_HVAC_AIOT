@@ -199,6 +199,8 @@ sudo docker logs -f mqtt-subscriber
 
 ---
 
+<<<<<<< HEAD
+=======
 ## 8. Xử lý sự cố thường gặp (Troubleshooting)
 
 ### Lỗi 1: `Bind for 0.0.0.0:1883 failed: port is already allocated`
@@ -212,3 +214,4 @@ sudo docker logs -f mqtt-subscriber
 * **Khắc phục:**
   1. Đảm bảo ESP32 và Raspberry Pi cùng kết nối chung một lớp mạng nội bộ.
   2. Cho phép truy cập cổng 1883 trên tường lửa của Pi: `sudo ufw allow 1883/tcp`.
+>>>>>>> 89a4ccc (Refactor README.md to clean developer/academic documentation style)
