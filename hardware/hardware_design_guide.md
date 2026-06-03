@@ -1,16 +1,15 @@
-# Cẩm nang Thiết kế Phần cứng - Smart HVAC Edge Controller
-*Tài liệu hướng dẫn chi tiết sơ đồ nguyên lý (Schematic) và mạch in (PCB) cho hệ thống điều khiển HVAC thông minh*
+# Báo cáo Thiết kế Phần cứng - Smart HVAC Edge Controller
+*Tài liệu thuyết minh sơ đồ nguyên lý (Schematic) và thiết kế mạch in (PCB) cho hệ thống điều khiển HVAC thông minh*
 
-Tài liệu này được biên soạn nhằm hướng dẫn bạn thiết kế phần cứng hoàn chỉnh cho **Edge Controller** của dự án HVAC_Control. Tài liệu này cung cấp đầy đủ thông tin kỹ thuật cần thiết để bạn vẽ mạch trên bất kỳ phần mềm EDA nào (**EasyEDA, KiCad, hoặc Altium**).
+Tài liệu này trình bày chi tiết phương án thiết kế phần cứng hoàn chỉnh cho **Edge Controller** thuộc dự án HVAC_Control. Nội dung cung cấp đầy đủ các thông số kỹ thuật, sơ đồ phân bổ chân và nguyên lý hoạt động của các khối mạch chức năng phục vụ việc vẽ mạch trên các phần mềm EDA chuyên dụng (Altium Designer, KiCad, EasyEDA).
 
-> [!TIP]
-> Nếu bạn sử dụng **Altium Designer**, thư viện linh kiện chuẩn của Khuê Nguyễn Creator đã được cài đặt thành công tại `C:\Users\Public\Documents\Altium\Altium-Libraly`. Bạn hãy tham khảo ngay hướng dẫn cấu hình và bản đồ vị trí linh kiện chi tiết tại: [Hướng dẫn Cài đặt & Sử dụng Thư viện Altium](file:///c:/Users/DELL/OneDrive%20-%20Hanoi%20University%20of%20Science%20and%20Technology/Desktop/HVAC_Control/hardware/altium_library_guide.md).
+Linh kiện phần cứng trong thiết kế được đồng bộ với bộ thư viện Altium Designer chuẩn tại đường dẫn cục bộ: `C:\Users\Public\Documents\Altium\Altium-Libraly`.
 
 ---
 
 ## 🔌 1. Bảng Phân bổ Chân & Kết nối chi tiết (Netlist Pin Allocation)
 
-Dưới đây là sơ đồ đấu nối chi tiết từ Module **ESP32-S3-WROOM-1** tới các khối chức năng trên mạch.
+Sơ đồ đấu nối chi tiết từ Module vi điều khiển **ESP32-S3-WROOM-1** đến các khối chức năng ngoại vi trên mạch:
 
 ### A. Bảng kết nối tín hiệu chính
 | Tên chân ESP32-S3 | Hướng (I/O) | Kết nối ngoại vi | Vai trò chức năng | Lưu ý kỹ thuật |
@@ -177,4 +176,4 @@ Trước khi gửi file đi gia công tại nhà máy (ví dụ JLCPCB), hãy th
 
 ---
 
-Chúc bạn thiết kế được bo mạch HVAC điều khiển thông minh cực kỳ đẹp mắt, bền bỉ và hoạt động tin cậy tuyệt đối! Nếu bạn gặp bất kỳ vướng mắc gì trong quá trình vẽ mạch hoặc chạy đường dây trên phần mềm EDA, hãy nhắn ngay cho tôi để nhận hỗ trợ hiệu chỉnh kịp thời.
+*Lưu ý quan trọng:* Thiết kế bo mạch cần tuân thủ nghiêm ngặt các quy tắc cách ly nguồn động lực (AC 220V) và nguồn điều khiển (DC 5V/3.3V), bố trí các tụ lọc nhiễu sát chân nguồn IC và module để đảm bảo hệ thống vận hành liên tục, ổn định trong môi trường công nghiệp.

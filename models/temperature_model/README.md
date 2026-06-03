@@ -19,7 +19,7 @@ Mô hình này giúp dự báo sự thay đổi nhiệt độ trong nhà, đóng
 2. Chạy file để tiền xử lý dữ liệu từ `Cleaned_data_encode.csv` và huấn luyện mô hình XGBoost.
 
 ### Giai đoạn 2: Sinh dữ liệu mô phỏng Hà Nội
-Chúng ta sử dụng simulator Sinergym (EnergyPlus) để tạo ra tập dữ liệu kinh nghiệm riêng cho khí hậu nóng ẩm của Hà Nội.
+Sử dụng simulator Sinergym (EnergyPlus) để tạo tập dữ liệu kinh nghiệm riêng cho khí hậu nóng ẩm của Hà Nội.
 1. Đảm bảo bạn có file thời tiết Hà Nội trong thư mục `weather/`.
 2. Chạy lệnh sau trong terminal:
 ```bash

@@ -20,19 +20,19 @@
 #include "libraries/PubSubClient/PubSubClient.h"                   // Thư viện MQTT cục bộ
 
 // =========================================================================
-// ⚙️ CẤU HÌNH HỆ THỐNG (Vui lòng thay đổi theo mạng của bạn)
+// ⚙️ CẤU HÌNH HỆ THỐNG
 // =========================================================================
 
 // 1. Cấu hình kết nối WiFi
-#define WIFI_SSID        "Happy House-2.4GH"      // Tên mạng WiFi của bạn
-#define WIFI_PASSWORD    "12345689"  // Mật khẩu WiFi của bạn
+#define WIFI_SSID        "Happy House-2.4GH"      // Tên mạng WiFi
+#define WIFI_PASSWORD    "12345689"  // Mật khẩu WiFi
 
-// 2. Cấu hình kết nối MQTT Broker (Kết nối tới Dashboard smart-hvac đám mây)
+// 2. Cấu hình kết nối MQTT Broker (Kết nối tới Dashboard smart-hvac)
 #define MQTT_SERVER      "192.168.1.10"    // Địa chỉ IP của Raspberry Pi Server
 #define MQTT_PORT        1883                  // Cổng MQTT mặc định
-#define MQTT_DEVICE_ID   "indoor-01"           // ID thiết bị đám mây của bạn
-#define MQTT_PUB_TOPIC   "sensor/indoor"       // Topic gửi dữ liệu cảm biến đám mây
-#define MQTT_SUB_TOPIC   "remote-control/#"    // Topic nhận lệnh điều khiển đám mây (wildcard)
+#define MQTT_DEVICE_ID   "indoor-01"           // ID thiết bị
+#define MQTT_PUB_TOPIC   "sensor/indoor"       // Topic gửi dữ liệu cảm biến
+#define MQTT_SUB_TOPIC   "remote-control/#"    // Topic nhận lệnh điều khiển (wildcard)
 
 // 3. Cấu hình chân kết nối phần cứng (Pin Definitions)
 #define I2C_SDA          8     // Chân SDA nối cảm biến SCD30
@@ -169,7 +169,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 
   Serial.printf("\n[MQTT Callback] Nhan lenh tren Topic [%s]: %s\n", topic, message);
 
-  // Đảm bảo lệnh này gửi tới thiết bị của chúng ta
+  // Đảm bảo lệnh này gửi tới đúng thiết bị
   if (strstr(message, MQTT_DEVICE_ID) == NULL) {
     // Nếu trong chuỗi lệnh không ghi device_id của ta, bỏ qua lệnh này
     // Tuy nhiên nếu Dashboard gửi dạng quảng bá, ta vẫn có thể tiếp nhận.

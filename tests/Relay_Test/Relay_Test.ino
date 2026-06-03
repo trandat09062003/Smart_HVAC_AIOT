@@ -18,7 +18,7 @@
 #define PIN_RELAY_FAN    4     // Chân GPIO4 điều khiển Relay quạt tản
 
 // Hầu hết các Module Relay trên thị trường kích hoạt ở mức THẤP (Active LOW - kích bằng 0V)
-// Nếu Relay của bạn kích hoạt ở mức CAO (Active HIGH - kích bằng 3.3V/5V), hãy sửa thành false
+// Nếu Relay kích hoạt ở mức CAO (Active HIGH - kích bằng 3.3V/5V), sửa thành false
 #define RELAY_ACTIVE_LOW true  
 
 void setup() {
