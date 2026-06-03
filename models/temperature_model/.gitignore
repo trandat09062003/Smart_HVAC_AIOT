@@ -1,0 +1,8 @@
+# Sinergym + EnergyPlus (working dirs tạo theo cwd lúc import sinergym)
+sinergym_runs/
+.lock
+
+# Environment
+.venv/
+__pycache__/
+.ipynb_checkpoints/
