@@ -28,8 +28,8 @@ Sơ đồ đấu nối chi tiết từ Module vi điều khiển **ESP32-S3-WROO
 | **GPIO43 (TXD0)** | Output | Chân TX của cổng UART nạp | UART Debug | Đưa ra Pin Header 4-pin dự phòng. |
 | **GPIO44 (RXD0)** | Input | Chân RX của cổng UART nạp | UART Debug | Đưa ra Pin Header 4-pin dự phòng. |
 | **GPIO48** | Output | Chân DIN của LED WS2812B | LED RGB Onboard đa chỉ thị | Cần nối tiếp điện trở $330\,\Omega$ trước chân DIN. |
-| **GPIO18 (RXD1)** | Input | Chân TXD của PMS7003 | Nhận dữ liệu cảm biến bụi | Kết nối nối tiếp để đọc luồng dữ liệu PMS. |
-| **GPIO17 (TXD1)** | Output | Chân RXD của PMS7003 | Gửi lệnh cấu hình cảm biến | Nối sang RXD của PMS7003 (tùy chọn). |
+| **GPIO16 (RXD1)** | Input | Chân TXD của PMS7003 | Nhận dữ liệu cảm biến bụi (PMS_TX) | Kết nối nối tiếp để nhận luồng dữ liệu từ cảm biến. |
+| **GPIO17 (TXD1)** | Output | Chân RXD của PMS7003 | Gửi lệnh tới cảm biến bụi (PMS_RX) | Kết nối nối tiếp để gửi lệnh điều khiển (tùy chọn). |
 
 ### B. Cấu hình chân Strapping cực kỳ quan trọng
 ESP32-S3 sử dụng một số chân để xác định chế độ boot khi khởi động (Strapping Pins). Đảm bảo thiết kế phần cứng tuân thủ:

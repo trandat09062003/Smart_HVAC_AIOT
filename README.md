@@ -100,13 +100,13 @@ Thực hiện mô phỏng và kiểm thử tự động so sánh tác nhân **DR
 | **GND** | **GND** | Đất chung |
 | **IN1** | **GPIO4** | Tín hiệu điều khiển quạt (Kích mức HIGH) |
 
-### C. Cảm biến bụi mịn PMS7003 với ESP32-S3 (Giao tiếp UART)
-| Chân PMS7003 | Chân ESP32-S3 / Nguồn | Chức năng | Màu dây khuyến nghị |
+### C. Cảm biến bụi mịn PMS7003 với ESP32-S3 (Giao tiếp UART - Giắc L1)
+| Chân PMS7003 (L1) | Chân ESP32-S3 / Nguồn | Chức năng | Màu dây khuyến nghị |
 | :--- | :--- | :--- | :--- |
-| **VCC (Pin 1/2)** | **5V** | Nguồn 5V cho cảm biến & quạt | Đỏ |
-| **GND (Pin 3/4)** | **GND** | Đất chung | Đen |
-| **TXD (Pin 7)** | **GPIO18** | Tín hiệu TX của PMS7003 -> RX1 | Vàng |
-| **RXD (Pin 9)** | **GPIO17** | Tín hiệu RX của PMS7003 -> TX1 (tùy chọn) | Xanh lá |
+| **VCC (Pin 1)** | **3V3** | Nguồn 3.3V cấp cho cảm biến | Đỏ |
+| **GND (Pin 2)** | **GND** | Đất chung | Đen |
+| **TXD (Pin 3)** | **GPIO16** | Tín hiệu TX của PMS7003 -> RX1 (ESP32 RX) | Vàng |
+| **RXD (Pin 4)** | **GPIO17** | Tín hiệu RX của PMS7003 -> TX1 (ESP32 TX) | Xanh lá |
 
 ### D. Đấu nối nguồn Quạt thông gió với Relay
 ```text

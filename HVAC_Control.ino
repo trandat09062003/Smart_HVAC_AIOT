@@ -41,8 +41,8 @@
 #define RELAY_ACTIVE_LOW false // Sửa lỗi ngược: Đặt thành false (Kích HIGH để bật quạt, LOW để tắt)hái nhiệt độ
 #define USE_ONBOARD_RGB  true  // Đặt thành 'true' nếu dùng LED RGB WS2812B tích hợp trên board ESP32-S3
 #define PIN_RGB_WS2812   48    // Chân điều khiển LED RGB WS2812B (thường là 48 hoặc 38)
-#define PIN_PMS_RX       18    // Chân RX1 nối TX của PMS7003
-#define PIN_PMS_TX       17    // Chân TX1 nối RX của PMS7003 (tùy chọn)
+#define PIN_PMS_RX       16    // Chân RX1 nối với PMS_TX (GPIO16)
+#define PIN_PMS_TX       17    // Chân TX1 nối với PMS_RX (GPIO17)
 
 // Các chân GPIO nếu bạn sử dụng LED rời gắn ngoài (khi USE_ONBOARD_RGB = false)
 #define PIN_LED_COOLING  10    // LED Xanh báo làm mát (Cooling)
