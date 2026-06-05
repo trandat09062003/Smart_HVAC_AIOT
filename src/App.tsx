@@ -11,7 +11,8 @@ import {
   AlertTriangle,
   CloudRain,
   CloudSun,
-  MapPin
+  MapPin,
+  RotateCw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import mainLogo from '../img/main_logo_2.png';
@@ -116,6 +117,7 @@ export default function App() {
   ]);
 
   const [history, setHistory] = useState<ChartDataPoint[]>([]);
+  const [latestValveAngle, setLatestValveAngle] = useState<number>(0);
   const [hvacState, setHvacState] = useState<HVACState>({
     power: true,
     mode: 'auto',
@@ -316,6 +318,7 @@ export default function App() {
           if (reading.id === 'pm25') return updateReading(reading, telemetry.latest.dust);
           return reading;
         }));
+        setLatestValveAngle(telemetry.latest.valve_angle ?? 0);
       } catch (error) {
         console.error(error);
       }
@@ -430,11 +433,12 @@ export default function App() {
             </div>
 
             {/* Metric Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
               <MetricCard reading={readings[0]} icon={Thermometer} />
               <MetricCard reading={readings[1]} icon={Droplets} />
               <MetricCard reading={readings[2]} icon={Wind} />
               <MetricCard reading={readings[3]} icon={Activity} />
+              <MetricCard reading={{id: 'valve_angle', name: 'Ventilation Valve', value: latestValveAngle, unit: '°', status: 'good', trend: 0 }} icon={RotateCw} />
             </div>
 
             {/* Main Visualizations */}

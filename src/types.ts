@@ -22,6 +22,7 @@ export interface ChartDataPoint {
   energy_base: number | null;
   power_ac: number | null;
   power_fan: number | null;
+  valve_angle?: number | null;
 }
 
 export interface ZoneManagerInfo {
@@ -46,6 +47,7 @@ export interface TelemetryResponse {
     energy_base: number | null;
     power_ac: number | null;
     power_fan: number | null;
+    valve_angle?: number | null;
   };
   history: ChartDataPoint[];
   controlState: RemoteControlState | null;

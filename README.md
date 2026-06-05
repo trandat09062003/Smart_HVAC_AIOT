@@ -1,153 +1,34 @@
-# Hệ thống Điều khiển HVAC và Tối ưu hóa Năng lượng tích hợp AI (Edge-to-Central DRL)
+# HVAC Control System
 
-### Dự án nghiên cứu phát triển hệ thống điều khiển vi khí hậu và chất lượng không khí tòa nhà dựa trên kiến trúc phân tán Edge-to-Central (ESP32-S3 & Docker Server)
+This repository implements a low‑cost HVAC control solution based on an ESP32‑S3 edge node and a Docker‑based central server. The system monitors indoor air quality (CO₂, PM2.5, temperature, humidity) and automatically controls a ventilation fan, a servo‑driven ventilation valve, and an onboard RGB indicator.
 
----
+## Features
+- **Edge node (ESP32‑S3)** reads sensors (SCD30 for CO₂/temperature/humidity, GP2Y1010 for PM2.5) and publishes telemetry via MQTT.
+- **Central server** (Docker) runs Mosquitto, TimescaleDB, and a Python subscriber that stores telemetry and provides a REST API.
+- **Web dashboard** (React/Vite) visualises temperature, humidity, CO₂, PM2.5 and the current valve angle.
+- **Automatic control**:
+  - Fan turns on when CO₂ > 800 ppm **or** PM2.5 > 50 µg/m³.
+  - Servo valve angle (0‑90°) is calculated from the highest pollution ratio.
+  - RGB LED (WS2812) shows system state: Blue = Cooling, Red = Heating, Green = Idle, Orange = Standby.
 
-## 1. Sơ đồ kiến trúc Phân tầng (System Architecture)
+## Hardware Connections
+| Component | ESP32 Pin |
+|-----------|----------|
+| SCD30 (I²C) | SDA = GPIO8, SCL = GPIO9 |
+| GP2Y1010 (LED) | GPIO5 |
+| GP2Y1010 (Analog) | GPIO6 |
+| Relay (fan) | GPIO4 |
+| Servo (valve) | GPIO7 (LED‑C PWM) |
+| WS2812 RGB LED | GPIO48 |
 
-Hệ thống hoạt động theo mô hình **Hierarchical Control (Điều khiển phân tầng)**:
-*   **Edge Node (ESP32-S3):** Thu thập dữ liệu từ cảm biến chất lượng không khí **Sensirion SCD30** (đo CO2, Nhiệt độ, Độ ẩm), điều khiển quạt thông gió qua **Module Relay**, chỉ thị trạng thái bằng **LED** và duy trì vòng điều khiển cục bộ an toàn (**Fail-safe**) dựa trên các ngưỡng dự phòng khi mất kết nối.
-*   **Central Server (Docker Server):** Đóng vai trò là **AI Zone Manager** chạy trên nền tảng Docker, lưu trữ dữ liệu chuỗi thời gian vào **TimescaleDB**, chạy mô hình dự báo tối ưu **DRL (Deep Reinforcement Learning)** kết hợp thông tin thời tiết ngoài trời để tự động hiệu chỉnh tham số Setpoint cho ESP32 nhằm tối ưu năng lượng.
+## Setup Instructions
+1. **Flash firmware** – Open `HVAC_Control.ino` in Arduino IDE, set your Wi‑Fi credentials and MQTT broker IP, then upload to the ESP32‑S3.
+2. **Run Docker stack** – From the project root run:
+   ```bash
+   docker compose up -d --build
+   ```
+   This starts Mosquitto, TimescaleDB, the subscriber, and the React UI (http://localhost:3000).
+3. **Access dashboard** – Open a browser at `http://localhost:3000` to monitor indoor conditions and see the current valve angle.
 
-```mermaid
-graph TD
-    %% Thiết bị phần cứng tại Zone
-    subgraph EdgeNode ["Edge Controller (ESP32-S3 Node)"]
-        ESP32["ESP32-S3-N16R8"]
-        SCD30["Cảm biến SCD30<br>(CO2, Temp, Hum)"]
-        Relay["Module Relay"]
-        Fan["Quạt thông gió"]
-        LED_Onboard["WS2812 RGB Onboard<br>(GPIO48 Indicator)"]
-        LocalCtrl["Thuật toán Hysteresis Cục bộ<br>(Tự động duy trì an toàn)"]
-        
-        ESP32 -->|I2C: GPIO8, GPIO9| SCD30
-        ESP32 -->|GPIO4| Relay
-        Relay -->|Đóng/Ngắt nguồn| Fan
-        ESP32 -->|Digital Write| LED_Onboard
-        ESP32 <-->|Vòng điều khiển kín tại biên| LocalCtrl
-    end
-
-    %% Mạng truyền dẫn
-    Broker["Local MQTT Broker (Mosquitto)<br>Port: 1883"]
-    ESP32 <-->|WiFi / MQTT<br>Publish: sensor/indoor<br>Subscribe: remote-control/#| Broker
-
-    %% Central Server
-    subgraph CentralServer ["Central AI Server"]
-        Subscriber["Python Subscriber & AI Engine<br>(mqtt-subscriber)"]
-        Timescale["TimescaleDB (PostgreSQL)"]
-        ReactUI["AI React Dashboard (Vite)<br>Port: 3000"]
-        
-        Broker <.->|Đồng bộ dữ liệu & lệnh| Subscriber
-        Subscriber -->|Lưu trữ chuỗi thời gian| Timescale
-        ReactUI <-->|API REST /api| Subscriber
-    end
-
-    %% Tương tác AI
-    WeatherAPI["Open-Meteo Weather API"] -.->|Dự báo ngoại cảnh| Subscriber
-    Subscriber -->|Setpoint tối ưu| Broker
-```
-
----
-
-## 2. Mô hình tối ưu hóa DRL (Applied Energy 2025)
-
-Dự án tích hợp mô hình tối ưu hóa đa mục tiêu dựa trên nghiên cứu:
-> *Fangzhou Guo, Sang woo Ham, Donghun Kim, Hyeun Jun Moon. Deep reinforcement learning control for co-optimizing energy consumption, thermal comfort, and indoor air quality in an office building. Applied Energy, 2025.*
-
-### A. Mô tả Bài toán & Simulator
-Tác nhân học tăng cường liên tục tối ưu hóa hành vi điều khiển HVAC nhằm cân bằng 4 mục tiêu:
-1.  **Tiêu thụ năng lượng (Energy consumption)**
-2.  **Tiện nghi nhiệt (Thermal comfort)** theo tiêu chuẩn ASHRAE-55
-3.  **Chất lượng không khí (Indoor CO2 concentration)**
-4.  **Nồng độ bụi mịn (Indoor PM2.5 concentration)**
-
-### B. Kết quả Tái hiện & So sánh (Seoul Summer Weather - 7 Days)
-Thực hiện mô phỏng và kiểm thử tự động so sánh tác nhân **DRL (DDPG)** với bộ điều khiển **Rule-Based Control (RBC)** truyền thống và **Random Policy**:
-
-| Chỉ số Đánh giá | DRL (Tác nhân AI) | RBC (Baseline) | Random Policy |
-| :--- | :---: | :---: | :---: |
-| **Nhiệt độ phòng TB ($^\circ$C)** | **23.27** | 19.25 (Quá lạnh) | 18.97 (Quá lạnh) |
-| **Độ ẩm tương đối TB (%)** | 2.0% | 1.4% | 4.4% |
-| **Nồng độ $CO_2$ TB (ppm)** | 870 | 583 | 499 |
-| **Nồng độ $PM_{2.5}$ TB ($\mu$g/m$^3$)** | 1.57 | 2.54 | 5.78 |
-| **Điện năng tiêu thụ (kWh/ngày)** | **21.088** | 31.768 | 38.647 |
-| **Reward trung bình / bước** | **-0.345** | -6.038 | -6.823 |
-| **Tỷ lệ vi phạm nhiệt độ** | **14.6%** | 88.4% | 89.6% |
-| **Tỷ lệ vi phạm $CO_2$** | 7.6% | 0.0% | 0.3% |
-| **Tỷ lệ vi phạm $PM_{2.5}$** | 0.7% | 2.5% | 18.3% |
-
-**Nhận xét:**
-*   **Tiết kiệm điện:** Tác nhân DRL tiết kiệm tới **33.62%** điện năng so với bộ điều khiển luật tĩnh (RBC) và **45.44%** so với chạy ngẫu nhiên.
-*   **Bảo vệ sức khỏe và tiện nghi:** Giữ phòng luôn mát mẻ dễ chịu ở mức $23.27^\circ\text{C}$ và lọc sạch các hạt chất ô nhiễm dưới ngưỡng nguy hại.
-
----
-
-## 3. Sơ đồ kết nối phần cứng (Wiring Diagram)
-
-### A. Cảm biến SCD30 với ESP32-S3 (Giao tiếp I2C)
-| Chân SCD30 | Chân ESP32-S3 | Chức năng | Màu dây khuyến nghị |
-| :--- | :--- | :--- | :--- |
-| **VIN** | **3V3** | Nguồn 3.3V | Đỏ |
-| **GND** | **GND** | Đất chung | Đen |
-| **SDA** | **GPIO8** | Dữ liệu I2C SDA | Vàng |
-| **SCL** | **GPIO9** | Xung nhịp I2C SCL | Cam |
-
-### B. Module Relay với ESP32-S3
-| Chân Relay | Chân ESP32-S3 / Nguồn | Chức năng |
-| :--- | :--- | :--- |
-| **VCC** | **5V** | Nguồn cuộn hút Relay |
-| **GND** | **GND** | Đất chung |
-| **IN1** | **GPIO4** | Tín hiệu điều khiển quạt (Kích mức HIGH) |
-
-### C. Cảm biến bụi mịn PMS7003 với ESP32-S3 (Giao tiếp UART - Giắc L1)
-| Chân PMS7003 (L1) | Chân ESP32-S3 / Nguồn | Chức năng | Màu dây khuyến nghị |
-| :--- | :--- | :--- | :--- |
-| **VCC (Pin 1)** | **3V3** | Nguồn 3.3V cấp cho cảm biến | Đỏ |
-| **GND (Pin 2)** | **GND** | Đất chung | Đen |
-| **TXD (Pin 3)** | **GPIO16** | Tín hiệu TX của PMS7003 -> RX1 (ESP32 RX) | Vàng |
-| **RXD (Pin 4)** | **GPIO17** | Tín hiệu RX của PMS7003 -> TX1 (ESP32 TX) | Xanh lá |
-
-### D. Đấu nối nguồn Quạt thông gió với Relay
-```text
-[ Nguồn Quạt - ] ───────────────────────────> [ Quạt - ] (Nối trực tiếp)
-
-[ Nguồn Quạt + ] ────────> [ Cổng COM ]
-                            [ Cổng NO  ] ───> [ Quạt + ]
-```
-
----
-
-## 4. Hướng dẫn Triển khai phần mềm
-
-### Bước 1: Nạp Firmware ESP32
-Mở tệp `HVAC_Control.ino` bằng **Arduino IDE**, cấu hình các thông số:
-```cpp
-#define WIFI_SSID        "WiFi_2.4G_Name"      // Chỉ hỗ trợ băng tần 2.4GHz
-#define WIFI_PASSWORD    "WiFi_Password"
-#define MQTT_SERVER      "192.168.1.10"        // Địa chỉ IP của Server Docker (Ví dụ: 192.168.1.10)
-#define MQTT_PORT        1883
-#define MQTT_DEVICE_ID   "indoor-01"
-```
-Chọn board **`ESP32S3 Dev Module`** và nạp chương trình.
-
-### Bước 2: Khởi chạy docker compose trên Server
-```bash
-docker compose up -d --build
-```
-Lệnh này khởi dựng cụm dịch vụ:
-*   `mosquitto` (MQTT Broker - Port 1883)
-*   `timescaledb` (TimescaleDB - Port 5432)
-*   `mqtt-subscriber` (AI Engine - Port 5000)
-*   `smart_hvac-app` (Web UI Dashboard - Port 3000)
-
-### Bước 3: Chạy mô phỏng đánh giá tự động
-Tiến hành đánh giá hiệu năng DRL và các mô hình Baseline trên Central Server:
-```bash
-python replicate_and_compare.py
-```
-
----
-
-## 5. Tác giả
-*   **Trần Đạt** (GitHub: [trandat09062003](https://github.com/trandat09062003))
+## License
+This project is licensed under the MIT License.
