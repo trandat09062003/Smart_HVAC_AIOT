@@ -274,8 +274,7 @@ Dev server Vite chạy tại `http://localhost:5173`.
 
 | Compose file | Dashboard | MQTT (host) | Ghi chú |
 |--------------|-----------|-------------|---------|
-| `docker-compose.yml` | 3000 | 1883 | Triển khai đơn |
-| `docker-compose.alt.yml` | 3005 | 1885 | Chạy cùng lúc với repo HVAC_Control |
+| `docker-compose.alt.yml` | 3005 | 1885 |  |
 
 Container `docker-compose.alt.yml`:
 
