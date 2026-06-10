@@ -1,493 +1,324 @@
-# AI HVAC Control — Hệ thống điều khiển HVAC thông minh (IoT + Deep RL)
+# Smart HVAC AIoT
 
-Dự án triển khai **điều khiển HVAC tầng trung tâm** kết hợp **ESP32-S3** (edge), **MQTT + TimescaleDB** (server), **Dashboard React** (giám sát) và **AI Zone Manager** dùng thuật toán **DDPG** (Deep Deterministic Policy Gradient) theo phương pháp bài báo Applied Energy 2025.
+Hệ thống giám sát và điều khiển HVAC cho phòng làm việc, kết hợp node IoT ESP32-S3, server Docker và bộ điều khiển DRL (DDPG) theo hướng tiếp cận của Guo et al., *Applied Energy*, 2025 ([DOI: 10.1016/j.apenergy.2024.124467](https://doi.org/10.1016/j.apenergy.2024.124467)).
 
-Mục tiêu: đồng thời tối ưu **tiêu thụ năng lượng**, **tiện nghi nhiệt**, **nồng độ CO₂** và **PM₂.₅** trong phòng làm việc.
+Phần cứng đo nhiệt độ, độ ẩm, CO₂ và PM₂.₅, đẩy dữ liệu lên server qua MQTT. Server chạy inference từ model đã huấn luyện, tính setpoint (nhiệt độ mục tiêu, quạt, van thông gió, ngưỡng CO₂/RH) rồi gửi ngược về ESP32. Dashboard React hiển thị telemetry và cho phép điều khiển thủ công khi cần.
 
----
-
-## Mục lục
-
-1. [Tổng quan sản phẩm](#1-tổng-quan-sản-phẩm)
-2. [Kiến trúc hệ thống](#2-kiến-trúc-hệ-thống)
-3. [Phần cứng](#3-phần-cứng)
-4. [Cấu trúc thư mục](#4-cấu-trúc-thư-mục)
-5. [Model AI — Đánh giá chi tiết](#5-model-ai--đánh-giá-chi-tiết)
-6. [Tạo model (Training)](#6-tạo-model-training)
-7. [Sử dụng model (Deployment)](#7-sử-dụng-model-deployment)
-8. [Hướng dẫn triển khai từ đầu đến cuối](#8-hướng-dẫn-triển-khai-từ-đầu-đến-cuối)
-9. [Docker và cổng mạng](#9-docker-và-cổng-mạng)
-10. [Dashboard và API](#10-dashboard-và-api)
-11. [Xử lý sự cố](#11-xử-lý-sự-cố)
-12. [Tài liệu tham khảo](#12-tài-liệu-tham-khảo)
+Repository: [github.com/trandat09062003/Smart_HVAC_AIOT](https://github.com/trandat09062003/Smart_HVAC_AIOT)
 
 ---
 
-## 1. Tổng quan sản phẩm
+## 1. Tổng quan hệ thống
 
-### Luồng vận hành
+Hệ thống chia làm ba tầng:
 
-```mermaid
-flowchart LR
-    subgraph Edge["ESP32-S3 (indoor-01)"]
-        SCD30["SCD30\nT, RH, CO₂"]
-        PMS["PMS5003\nPM2.5"]
-        ACT["Relay + Servo + LED"]
-    end
+**Tầng edge (ESP32-S3)** đọc cảm biến SCD30 (I²C) và PMS5003 (UART), điều khiển relay quạt, servo van và LED trạng thái. Firmware vẫn có logic rule cục bộ để an toàn khi mất WiFi hoặc MQTT.
 
-    subgraph Server["Docker Server"]
-        MQ["Mosquitto\nMQTT Broker"]
-        SUB["mqtt-subscriber\nAI Zone Manager"]
-        DB["TimescaleDB"]
-        WEB["React Dashboard"]
-    end
+**Tầng server (Docker)** gồm Mosquitto, TimescaleDB và service Python `mqtt-subscriber`. Service này lưu telemetry, expose REST API cho dashboard, và chạy **AI Zone Manager** — module inference DDPG + chính sách theo khung giờ.
 
-    SCD30 --> ACT
-    PMS --> ACT
-    Edge -->|sensor/indoor| MQ
-    MQ --> SUB
-    SUB --> DB
-    SUB -->|remote-control/indoor-01| MQ
-    MQ --> Edge
-    WEB --> SUB
+**Tầng giao diện (React/Vite)** truy vấn API, vẽ biểu đồ realtime và gửi lệnh override.
+
+Luồng dữ liệu:
+
+```
+ESP32  --[sensor/indoor]-->  Mosquitto  -->  mqtt-subscriber  -->  TimescaleDB
+                                    ^                |
+                                    |                v
+ESP32  <--[remote-control/indoor-01]--  AI Zone Manager (DDPG / rule fallback)
 ```
 
-### Hai lớp điều khiển
-
-| Lớp | Vị trí | Vai trò |
-|-----|--------|---------|
-| **AI Zone Manager** | `server/mqtt-subscriber/subscriber.py` | Nhận telemetry, chạy inference DDPG, gửi setpoint (nhiệt độ, quạt, van, ngưỡng CO₂/RH) |
-| **Firmware cục bộ** | `esp32/HVAC_Control.ino` | Thực thi relay/servo, rule bảo vệ khi mất MQTT, LED trạng thái |
-
-Nếu không load được model, hệ thống **tự động fallback** sang điều khiển rule-based theo khung giờ (giờ làm việc / đêm ECO / chờ tiết kiệm).
+Khi không load được trọng số model, subscriber tự chuyển sang rule-based (giờ làm việc, đêm ECO, chờ tiết kiệm, free cooling).
 
 ---
 
-## 2. Kiến trúc hệ thống
+## 2. Phần cứng
 
-### Stack phần mềm
+| Linh kiện | Giao tiếp | GPIO |
+|-----------|-----------|------|
+| ESP32-S3-N16R8 | — | — |
+| Sensirion SCD30 | I²C | SDA=8, SCL=9 |
+| Plantower PMS5003 | UART | RX=17, TX=16 |
+| Relay quạt | Digital | 4 |
+| Servo van (0–90°) | PWM LEDC | 15 |
+| WS2812 RGB (tùy chọn) | — | 48 |
 
-| Thành phần | Công nghệ |
-|------------|-----------|
-| Firmware | Arduino IDE, ESP32-S3, PubSubClient |
-| Broker | Eclipse Mosquitto |
-| Backend | Python 3.11, paho-mqtt, psycopg2, NumPy |
-| Database | TimescaleDB (PostgreSQL) |
-| Frontend | React, Vite, TypeScript, Tailwind |
-| AI Training | Python 3.12+, TensorFlow 2.x, Matplotlib |
-| Container | Docker Compose |
-
-### Topic MQTT chính
-
-| Topic | Hướng | Nội dung |
-|-------|-------|----------|
-| `sensor/indoor` | ESP32 → Server | JSON: `temperature`, `humidity`, `co2`, `dust`, `device_id` |
-| `remote-control/{device_id}` | Server → ESP32 | JSON: `power`, `temp`, `operation_mode`, `fan_power`, `co2_max`, `humidity_max`, `damper_ratio` |
+Sơ đồ PCB và layout chân chi tiết: `docs/hardware_design_guide.md`.
 
 ---
 
-## 3. Phần cứng
+## 3. Cấu trúc project
 
-### Linh kiện
-
-| Thành phần | Chức năng |
-|------------|-----------|
-| ESP32-S3-N16R8 | Vi điều khiển chính |
-| Sensirion SCD30 | Nhiệt độ, độ ẩm, CO₂ (I²C) |
-| PMS5003 | PM₂.₅ (UART) |
-| Relay module | Bật/tắt quạt thông gió |
-| Servo | Góc mở van thông gió (0–90°) |
-| WS2812 RGB (tùy chọn) | LED trạng thái hệ thống |
-
-### Sơ đồ chân (ESP32)
-
-| Thiết bị | GPIO |
-|----------|------|
-| SCD30 SDA / SCL | GPIO8 / GPIO9 |
-| Relay quạt | GPIO4 |
-| Servo van | GPIO15 |
-| PMS5003 RX / TX | GPIO17 / GPIO16 |
-| WS2812 RGB | GPIO48 |
-
-Chi tiết thiết kế PCB: `docs/hardware_design_guide.md`
-
----
-
-## 4. Cấu trúc thư mục
-
-```text
-AI_HVAC_Control/
-├── esp32/HVAC_Control.ino        # Firmware ESP32
+```
+Smart_HVAC_AIOT/
+├── esp32/HVAC_Control.ino          Firmware chính
 ├── server/mqtt-subscriber/
-│   ├── subscriber.py             # AI Zone Manager + MQTT + REST API
-│   ├── load_model.py             # Export .h5 → .npz
-│   ├── actor_weights.npz         # Model runtime (inference NumPy)
-│   └── Dockerfile
+│   ├── subscriber.py               MQTT + DB + AI Zone Manager
+│   ├── load_model.py               Export actor .h5 → .npz
+│   └── actor_weights.npz           Trọng số dùng khi chạy server
 ├── paper_reference/
-│   ├── checkpoints_v2/           # Model train: actor.weights.h5, critic.weights.h5
-│   ├── drl/                      # DDPG agent, networks, replay buffer
-│   ├── simulator/                # Hybrid simulator
-│   ├── data/                     # Weather generator
-│   ├── train.py                  # Script train
-│   └── evaluate.py               # Đánh giá
-├── scripts/replicate_and_compare.py  # Benchmark DRL vs RBC vs Random
-├── docs/                         # Tài liệu phần cứng, biểu đồ so sánh
-├── src/                          # Dashboard React
-├── libraries/                    # Thư viện Arduino
-├── tests/                        # Test phần cứng
-├── mosquitto/                    # Cấu hình MQTT broker
-├── docker-compose.yml            # Cổng 3000 / 1883
-└── docker-compose.alt.yml        # Cổng 3005 / 1885
+│   ├── checkpoints_v2/
+│   │   ├── actor.weights.h5        Trọng số Actor (train / eval)
+│   │   └── critic.weights.h5       Trọng số Critic (chỉ cần khi train tiếp)
+│   ├── drl/                        DDPG agent, networks, replay buffer
+│   ├── simulator/                  Hybrid simulator (5 mô hình con)
+│   ├── data/                       Sinh dữ liệu thời tiết
+│   ├── train.py                    Huấn luyện
+│   └── evaluate.py                 Đánh giá 1 ngày mô phỏng
+├── scripts/replicate_and_compare.py  So sánh DRL / RBC / Random (7 ngày)
+├── docs/                           Tài liệu PCB, biểu đồ benchmark
+├── src/                            Dashboard React
+├── libraries/                      SparkFun SCD30, PubSubClient
+├── tests/                          Sketch test từng module phần cứng
+├── mosquitto/                      Cấu hình broker
+├── docker-compose.yml              Dashboard :3000, MQTT :1883
+└── docker-compose.alt.yml          Dashboard :3005, MQTT :1885
 ```
 
 ---
 
-## 5. Model AI — Đánh giá chi tiết
+## 4. Model DDPG
 
-### 5.1 Model đã tải là gì?
+### 4.1 Mô tả
 
-Model hiện tại là **DDPG Agent v2** — bộ **Actor–Critic** deep reinforcement learning, huấn luyện trên **Hybrid Simulator** mô phỏng phòng văn phòng theo bài báo:
+Model là **DDPG v2** (Actor–Critic). Agent được train trong môi trường mô phỏng lai (`paper_reference/simulator/hybrid_sim.py`) gồm mô hình vỏ nhà, độ ẩm, CO₂, PM₂.₅ và HVAC. Dữ liệu thời tiết đầu vào lấy từ `SeoulWeatherGenerator` (tháng 5–10, bước 15 phút).
 
-> Fangzhou Guo, Sang Woo Ham, Donghun Kim, Hyeun Jun Moon. *Deep reinforcement learning control for co-optimising energy consumption, thermal comfort, and indoor air quality in an office building.* Applied Energy, 2025. [DOI: 10.1016/j.apenergy.2024.124467](https://doi.org/10.1016/j.apenergy.2024.124467)
+Hàm reward (Eq. 15–20 bài báo) phạt tiêu thụ điện và các vi phạm: nhiệt ngoài 22–24.5 °C, RH > 60%, CO₂ ≥ 1000 ppm, PM₂.₅ ≥ 10 µg/m³ (trong giờ có người).
 
-**Bản sao model** (Google Drive, cập nhật 06/2026):  
-[https://drive.google.com/drive/folders/1Z_hq9zdndvTVatvJ3bc4qA17vJzMEJJC](https://drive.google.com/drive/folders/1Z_hq9zdndvTVatvJ3bc4qA17vJzMEJJC)
+**State** — 10 chiều, chuẩn hóa min–max trước khi vào mạng:
 
-### 5.2 Kiến trúc mạng
+`[giờ, T_ngoài, ω_ngoài, q_mặt_trời, 450, PM_ngoài, T_phòng, ω_phòng, CO₂, PM_phòng]`
 
-**State (10 chiều)** — vector chuẩn hóa Min–Max trước khi đưa vào Actor:
+**Action** — 4 chiều, đầu ra tanh rồi map về [0, 1]:
 
-| Index | Biến | Ý nghĩa | Min | Max |
-|-------|------|---------|-----|-----|
-| 0 | hour | Giờ trong ngày | 0 | 24 |
-| 1 | T_oa | Nhiệt độ ngoài trời (°C) | −5 | 40 |
-| 2 | ω_oa | Độ ẩm tuyệt đối ngoài trời | 0.002 | 0.025 |
-| 3 | q_sol | Tải nhiệt mặt trời (W) | 0 | 900 |
-| 4 | — | Cố định 450 | 390 | 510 |
-| 5 | PM_out | PM₂.₅ ngoài trời | 0 | 80 |
-| 6 | T_za | Nhiệt độ trong phòng (°C) | 15 | 35 |
-| 7 | ω_za | Độ ẩm tuyệt đối trong phòng | 0.003 | 0.022 |
-| 8 | CO₂ | Nồng độ CO₂ (ppm) | 400 | 2000 |
-| 9 | PM_in | PM₂.₅ trong phòng | 0 | 50 |
+| Thành phần | Ý nghĩa vật lý (ban ngày) |
+|------------|---------------------------|
+| a₀ | Nhiệt độ nước lạnh 5–15 °C |
+| a₁ | Độ mở van gió tươi 20–100% |
+| a₂ | Tốc độ quạt 10–100% |
+| a₃ | Máy lọc không khí ON/OFF |
 
-**Action (4 chiều)** — đầu ra Actor (tanh → [−1, 1], map sang [0, 1]):
+**Actor:** `Dense(256) → Dense(256) → Dense(4, tanh)`  
+**Critic:** hai nhánh state/action, concat, hai lớp 256, ra Q-value.
 
-| Index | Biến điều khiển | Phạm vi thực |
-|-------|-----------------|--------------|
-| 0 | T_chws | Nước lạnh 5–15 °C (ban ngày) |
-| 1 | D_oa | Van gió tươi 20–100% |
-| 2 | f_sa | Tốc độ quạt 10–100% |
-| 3 | P_air | Máy lọc không khí ON/OFF |
+Phiên bản v2 (`paper_reference/drl/ddpg_agent.py`) bổ sung so với bản đầu: gradient clipping, warm-up 10.000 mẫu, critic update 2 lần/bước, clip reward vào [−20, 0]. Train 5000 episode; checkpoint lưu mỗi 5 episode.
 
-**Actor network:** `Input(10) → Dense(256, ReLU) → Dense(256, ReLU) → Dense(4, tanh)`
+### 4.2 Hai file trong `checkpoints_v2/`
 
-**Critic network:** Nhánh state (16→32) + nhánh action (32) → Concat → Dense(256)×2 → Q-value
+- **`actor.weights.h5`** — mạng chọn hành động. Đây là phần được deploy lên server.
+- **`critic.weights.h5`** — mạng đánh giá Q(s,a), chỉ dùng khi train hoặc fine-tune, không cần lúc chạy thực tế.
 
-**Cải tiến v2 so với v1** (`paper_reference/drl/ddpg_agent.py`):
+File runtime trên server: `server/mqtt-subscriber/actor_weights.npz` — trích từ Actor, forward pass thuần NumPy (không cần TensorFlow trong container).
 
-- Gradient clipping (norm = 1.0)
-- Warm-up: chỉ train sau ≥ 10.000 mẫu trong replay buffer
-- Critic cập nhật 2×/bước, Actor 1×/bước (kiểu TD3)
-- Clip reward vào [−20, 0] trước khi lưu buffer
+### 4.3 Kết quả benchmark (mô phỏng 7 ngày, tháng 7)
 
-**Hyperparameters** (theo Table 6 bài báo):
+Chạy `python scripts/replicate_and_compare.py` trên model hiện có:
 
-| Tham số | Giá trị |
-|---------|---------|
-| γ (discount) | 0.98 |
-| τ (soft update) | 0.005 |
-| lr_actor | 2.5×10⁻⁵ |
-| lr_critic | 5×10⁻⁵ |
-| batch_size | 128 |
-| replay buffer | 1.500.000 mẫu |
-| OU noise | θ=0.15, σ=0.2 |
+| | DRL | RBC | Random |
+|---|:---:|:---:|:---:|
+| Năng lượng (kWh/ngày) | 17.85 | 31.77 | 38.65 |
+| Reward trung bình / bước | −3.50 | −6.04 | −6.82 |
+| Vi phạm CO₂ (≥1000 ppm) | 0% | 0% | 0.3% |
+| Vi phạm PM₂.₅ (≥10 µg/m³) | 7.0% | 2.5% | 18.3% |
+| Vi phạm nhiệt (22–24.5 °C) | 62.2% | 88.4% | 89.6% |
 
-### 5.3 File model
+DRL giảm khoảng 44% điện năng so với rule-based baseline và 54% so với policy ngẫu nhiên, đồng thời giữ CO₂ ổn định. Nhiệt độ trung bình trong sim mùa hè Seoul hơi cao so với dải tiện nghi — khi áp dụng thực tế ở Hà Nội nên cân nhắc train lại hoặc fine-tune với profile thời tiết địa phương.
 
-| File | Kích thước | Mục đích |
-|------|------------|----------|
-| `paper_reference/checkpoints_v2/actor.weights.h5` | ~296 KB | Trọng số Actor (Keras/TensorFlow) — dùng train/eval |
-| `paper_reference/checkpoints_v2/critic.weights.h5` | ~365 KB | Trọng số Critic — chỉ cần khi train tiếp |
-| `server/mqtt-subscriber/actor_weights.npz` | ~280 KB | Trọng số Actor dạng NumPy — **dùng khi chạy server** |
+Biểu đồ: `docs/comparison_chart.png`
 
-Cấu trúc `actor_weights.npz`:
+### 4.4 Backup model
 
-```
-w_z1:     (10, 256)
-b_z1:     (256,)
-w_z2:     (256, 256)
-b_z2:     (256,)
-w_action: (256, 4)
-b_action: (4,)
-```
-
-Server **không cần TensorFlow** lúc runtime — chỉ forward pass NumPy trong `subscriber.py`.
-
-### 5.4 Kết quả đánh giá (mô phỏng 7 ngày, tháng 7 Seoul)
-
-Chạy benchmark trên model đã tải (`checkpoints_v2`) so với **RBC** (rule-based baseline bài báo) và **Random**:
-
-| Chỉ số | DRL (đã train) | RBC | Random |
-|--------|:--------------:|:---:|:------:|
-| Nhiệt độ TB (°C) | 25.5 | 19.2 | 19.0 |
-| CO₂ TB (ppm) | 570 | 583 | 499 |
-| PM₂.₅ TB (µg/m³) | 3.3 | 2.5 | 5.8 |
-| **Năng lượng (kWh/ngày)** | **17.85** | 31.77 | 38.65 |
-| Reward TB / bước | **−3.50** | −6.04 | −6.82 |
-| Vi phạm nhiệt độ (%) | 62.2 | 88.4 | 89.6 |
-| Vi phạm CO₂ ≥ 1000 ppm (%) | **0.0** | 0.0 | 0.3 |
-| Vi phạm PM₂.₅ ≥ 10 (%) | 7.0 | 2.5 | 18.3 |
-
-**Kết luận đánh giá:**
-
-- **Tiết kiệm năng lượng:** DRL giảm **~44%** năng lượng so với RBC và **~54%** so với Random trong môi trường mô phỏng.
-- **Chất lượng không khí:** CO₂ luôn dưới ngưỡng 1000 ppm; PM₂.₅ ở mức thấp.
-- **Reward:** −3.50/bước tốt hơn đáng kể so với baseline v1 (~−13.5/bước trong `train.py`).
-- **Hạn chế:** Mô phỏng dùng thời tiết Seoul mùa hè — nhiệt độ TB hơi cao so với dải tiện nghi 22–24.5 °C; khi triển khai thực tế tại Hà Nội cần **fine-tune** hoặc train lại với dữ liệu/local weather.
-
-> Tái tạo báo cáo benchmark: `python scripts/replicate_and_compare.py` → `docs/comparison_results.md`
+Bản sao đầy đủ project + weights: [Google Drive](https://drive.google.com/drive/folders/1Z_hq9zdndvTVatvJ3bc4qA17vJzMEJJC)
 
 ---
 
-## 6. Tạo model (Training)
+## 5. Huấn luyện model
 
-### 6.1 Môi trường mô phỏng
+**Yêu cầu:** Python 3.12+, TensorFlow 2.x, NumPy, Matplotlib.
 
-`paper_reference/simulator/hybrid_sim.py` tích hợp 5 mô hình (Fig. 5 bài báo):
-
-1. **BuildingEnvelopeModel** — truyền nhiệt tường/phòng
-2. **HumidityModel** — cân bằng ẩm
-3. **CO2Model** — CO₂ trong phòng
-4. **PM25Model** — bụi mịn PM₂.₅
-5. **HVACRegressionModel** — luồng gió, nước lạnh, quạt
-
-**Reward** (Eq. 15–20): phạt năng lượng + vi phạm nhiệt (22–24.5 °C) + RH > 60% + CO₂ ≥ 1000 ppm + PM₂.₅ ≥ 10 µg/m³ (ban ngày có người).
-
-### 6.2 Cài đặt môi trường train
-
-```powershell
-cd "C:\Users\DELL\OneDrive - Hanoi University of Science and Technology\Desktop\AI_HVAC_Control"
-
+```bash
 pip install tensorflow numpy matplotlib
-```
 
-### 6.3 Chạy training
-
-```powershell
 cd paper_reference
 python train.py
 ```
 
-**Quá trình train (`train.py`):**
+`train.py` chạy 5000 episode, mỗi episode qua 6 tháng × 30 ngày × 96 bước. Weight lưu tại `paper_reference/checkpoints_v2/`. Đường cong train: `paper_reference/logs/training_curve_v2.png` (tạo sau khi train xong).
 
-| Bước | Mô tả |
-|------|-------|
-| 1 | Khởi tạo `HybridSimulator`, `DDPGAgentV2`, `SeoulWeatherGenerator` |
-| 2 | Mỗi episode: lặp 6 tháng (5–10) × 30 ngày × 96 bước (15 phút/bước) |
-| 3 | Agent chọn action + OU noise → simulator trả reward → lưu replay buffer |
-| 4 | Sau 10.000 mẫu: bắt đầu cập nhật Actor/Critic |
-| 5 | Mỗi 5 episode: lưu `checkpoints_v2/actor.weights.h5` và `critic.weights.h5` |
-| 6 | Kết thúc 5000 episode: vẽ `logs/training_curve_v2.png` |
+Đánh giá nhanh một ngày:
 
-```powershell
-# Đánh giá nhanh 1 ngày
+```bash
+cd paper_reference
 python evaluate.py
-
-# Hoặc dùng notebook Colab
-# paper_reference/train.ipynb
 ```
 
-### 6.4 Sau khi train — chuẩn bị file cho server
+Notebook tương đương cho Colab: `paper_reference/train.ipynb`.
 
-```powershell
-cd ..\server\mqtt-subscriber
-python load_model.py
+**Sau khi train**, export sang định dạng server:
+
+```bash
+python server/mqtt-subscriber/load_model.py
 ```
 
-Script này:
-
-1. Load `paper_reference/checkpoints_v2/` bằng TensorFlow
-2. Trích trọng số 3 lớp Dense của Actor
-3. Ghi `actor_weights.npz` cho subscriber
-
-### 6.5 Train lại / fine-tune
-
-- Giữ nguyên `STATE_MIN` / `STATE_MAX` nếu không đổi không gian trạng thái
-- Có thể giảm `N_EPISODES` khi thử nghiệm (ví dụ 500), tăng lên 5000 cho bản production
-- Thay `SeoulWeatherGenerator` bằng generator thời tiết Hà Nội nếu muốn thích nghi địa phương
+Script load `checkpoints_v2/actor.weights.h5`, trích 6 tensor (w_z1, b_z1, w_z2, b_z2, w_action, b_action) và ghi `actor_weights.npz`.
 
 ---
 
-## 7. Sử dụng model (Deployment)
+## 6. Triển khai và sử dụng model
 
-### 7.1 Luồng inference trên server
+### 6.1 Inference trên server
 
-```
-Telemetry MQTT → ZoneManager.evaluate_and_control()
-    → Xây dựng state vector 10 chiều từ cảm biến thực
-    → Chuẩn hóa Min–Max
-    → Forward pass NumPy (actor_weights.npz)
-    → Map action → target_temp, fan_power, damper_ratio, co2_max
-    → Publish remote-control/{device_id}
-```
-
-**Chính sách theo giờ** (`ZoneManager.get_scheduled_policy`):
-
-| Khung giờ | Policy | Hành vi |
-|-----------|--------|---------|
-| 08:00–17:00 | `working_hours` | AI DDPG hoạt động |
-| 22:00–06:00 | `night_eco` | AI DDPG hoạt động |
-| Còn lại | `eco_standby` | Tắt nguồn, rule tiết kiệm |
-| Manual override | `manual` | Giữ setpoint người dùng (Dashboard) |
-
-**Map action → lệnh ESP32** (trích từ `subscriber.py`):
+`ZoneManager` trong `subscriber.py` nhận telemetry từ MQTT, ghép state vector 10 chiều từ giá trị cảm biến thực (ước lượng ω từ RH, q_sol từ giờ trong ngày, v.v.), chuẩn hóa, chạy forward Actor, rồi map sang lệnh MQTT:
 
 ```python
-a = (clip(action, -1, 1) + 1) / 2          # [0, 1]
-T_chws = 5.0 + a[0] * 10.0                 # °C
-target_temp = round(22.0 + (T_chws - 5) / 2, 1)
-D_oa = 0.2 + a[1] * 0.8                    # 20–100%
-f_sa = 0.1 + a[2] * 0.9                    # 10–100%
-fan_on = (f_sa > 0.20) or (D_oa > 0.30)
+a = (clip(action, -1, 1) + 1) / 2
+T_chws      = 5.0 + a[0] * 10.0
+target_temp = round(22.0 + (T_chws - 5.0) / 2.0, 1)
+D_oa        = 0.2 + a[1] * 0.8
+f_sa        = 0.1 + a[2] * 0.9
 ```
 
-Nếu load `actor_weights.npz` thất bại → **fallback rule-based** (free cooling, giờ làm việc, đêm ECO).
+Chính sách theo giờ:
 
-### 7.2 Cập nhật model mới
+| Khung giờ | Policy | Ghi chú |
+|-----------|--------|---------|
+| 08:00–17:00 | `working_hours` | DRL hoạt động |
+| 22:00–06:00 | `night_eco` | DRL hoạt động |
+| Còn lại | `eco_standby` | Tắt nguồn, rule tiết kiệm |
+| Override từ dashboard | `manual` | Giữ setpoint người dùng trong thời gian cấu hình |
 
-**Cách 1 — Từ Google Drive** (đã làm):
+### 6.2 Cập nhật model
 
-Tải 3 file vào đúng vị trí trong `paper_reference/checkpoints_v2/` và `server/mqtt-subscriber/`.
+**Từ Drive:** tải `actor.weights.h5`, `critic.weights.h5` vào `paper_reference/checkpoints_v2/`, và `actor_weights.npz` vào `server/mqtt-subscriber/`.
 
-**Cách 2 — Sau train local:**
+**Sau train local:**
 
-```powershell
-python server\mqtt-subscriber\load_model.py
+```bash
+python server/mqtt-subscriber/load_model.py
 docker compose -p ai_hvac_control -f docker-compose.alt.yml build mqtt-subscriber
 docker compose -p ai_hvac_control -f docker-compose.alt.yml up -d mqtt-subscriber
 ```
 
-**Cách 3 — Kiểm tra model đã load:**
+Kiểm tra log:
 
-```powershell
+```bash
 docker logs ai-hvac-mqtt-subscriber --tail 20
 ```
 
-Kỳ vọng thấy: `AI Zone Manager: Loaded DRL actor weights successfully!`
+Cần thấy dòng `Loaded DRL actor weights successfully!`
 
-### 7.3 Firmware ESP32
+### 6.3 MQTT
 
-Sửa trong `esp32/HVAC_Control.ino`:
+| Topic | Chiều | Payload chính |
+|-------|-------|---------------|
+| `sensor/indoor` | ESP → server | `temperature`, `humidity`, `co2`, `dust`, `device_id` |
+| `remote-control/indoor-01` | server → ESP | `power`, `temp`, `operation_mode`, `fan_power`, `co2_max`, `humidity_max`, `damper_ratio` |
+
+---
+
+## 7. Cài đặt từ đầu
+
+### Bước 1 — Clone repo
+
+```bash
+git clone https://github.com/trandat09062003/Smart_HVAC_AIOT.git
+cd Smart_HVAC_AIOT
+```
+
+Model đã có sẵn trong repo. Nếu thiếu, tải từ Drive (mục 4.4).
+
+### Bước 2 — Chạy server
+
+Cần Docker Desktop.
+
+```bash
+# Mặc định: dashboard http://localhost:3000, MQTT 1883
+docker compose up -d --build
+
+# Hoặc chạy song song project HVAC_Control khác (tránh trùng cổng):
+docker compose -p ai_hvac_control -f docker-compose.alt.yml up -d --build
+# → dashboard http://localhost:3005, MQTT 1885
+```
+
+### Bước 3 — Cấu hình firmware
+
+Mở `esp32/HVAC_Control.ino`, sửa:
 
 ```cpp
-#define WIFI_SSID        "TenWiFi"
-#define WIFI_PASSWORD    "MatKhau"
+#define WIFI_SSID        "TenMangWiFi"
+#define WIFI_PASSWORD    "MatKhauWiFi"
 #define MQTT_SERVER      "192.168.x.x"   // IP máy chạy Docker
-#define MQTT_PORT        1885            // alt compose; dùng 1883 nếu compose mặc định
+#define MQTT_PORT        1885            // 1883 nếu dùng docker-compose.yml
 #define MQTT_DEVICE_ID   "indoor-01"
 ```
 
-Upload firmware qua Arduino IDE. ESP32 subscribe `remote-control/#` và áp dụng lệnh từ AI server; nếu mất mạng vẫn chạy rule cục bộ.
+Upload bằng Arduino IDE (board ESP32-S3, thư viện trong `libraries/`).
 
----
+### Bước 4 — Kiểm tra
 
-## 8. Hướng dẫn triển khai từ đầu đến cuối
+1. Dashboard mở được, có dữ liệu cảm biến.
+2. `docker logs ai-hvac-mqtt-subscriber -f` — MQTT connected, model loaded.
+3. ESP32 nhận lệnh `remote-control/indoor-01`, quạt/van phản ứng theo setpoint.
 
-### Bước 1 — Clone / mở project
+### Bước 5 — Phát triển frontend (tùy chọn)
 
-```powershell
-cd "C:\Users\DELL\OneDrive - Hanoi University of Science and Technology\Desktop\AI_HVAC_Control"
+```bash
+npm install
+npm run dev
 ```
 
-### Bước 2 — (Tùy chọn) Train hoặc dùng model có sẵn
-
-- **Có sẵn:** `checkpoints_v2/` + `actor_weights.npz` (từ Drive hoặc đã train)
-- **Train mới:** `cd paper_reference && python train.py` → `python ..\server\mqtt-subscriber\load_model.py`
-
-### Bước 3 — Khởi động Docker
-
-```powershell
-# Chạy song song với HVAC_Control (không trùng cổng)
-docker compose -p ai_hvac_control -f docker-compose.alt.yml up -d --build
-```
-
-### Bước 4 — Cấu hình & nạp firmware ESP32
-
-- Sửa WiFi, IP broker, port MQTT
-- Upload `esp32/HVAC_Control.ino`
-
-### Bước 5 — Kiểm tra
-
-1. Mở Dashboard: **http://localhost:3005**
-2. Xem log subscriber: `docker logs ai-hvac-mqtt-subscriber -f`
-3. Xác nhận ESP32 publish lên `sensor/indoor`
-4. Dashboard hiển thị T, RH, CO₂, PM₂.₅ và trạng thái Zone Manager
-
-### Bước 6 — Vận hành sản phẩm
-
-- Giám sát realtime trên Dashboard
-- Điều khiển thủ công qua Control Panel (override tạm thời)
-- Dữ liệu lịch sử lưu TimescaleDB
-- AI tự điều chỉnh theo khung giờ và telemetry
+Dev server Vite chạy tại `http://localhost:5173`.
 
 ---
 
-## 9. Docker và cổng mạng
+## 8. Docker
 
-| File compose | Dashboard | MQTT | Project name |
-|--------------|-----------|------|--------------|
-| `docker-compose.yml` | 3000 | 1883 | mặc định |
-| `docker-compose.alt.yml` | **3005** | **1885** | `ai_hvac_control` |
+| Compose file | Dashboard | MQTT (host) | Ghi chú |
+|--------------|-----------|-------------|---------|
+| `docker-compose.yml` | 3000 | 1883 | Triển khai đơn |
+| `docker-compose.alt.yml` | 3005 | 1885 | Chạy cùng lúc với repo HVAC_Control |
 
-Container AI_HVAC_Control:
+Container `docker-compose.alt.yml`:
 
-| Container | Tên |
-|-----------|-----|
-| Dashboard | `ai_hvac_control-app-1` |
-| MQTT Subscriber | `ai-hvac-mqtt-subscriber` |
-| Mosquitto | `ai-hvac-mosquitto` |
-| TimescaleDB | `ai-hvac-timescaledb` |
+- `ai-hvac-mosquitto`
+- `ai-hvac-timescaledb`
+- `ai-hvac-mqtt-subscriber`
+- `ai_hvac_control-app-1`
 
----
-
-## 10. Dashboard và API
-
-- **Dashboard:** biểu đồ realtime, metric cards, cảnh báo ngưỡng, bảng điều khiển từ xa
-- **API telemetry:** subscriber expose port 5000 (trong Docker network)
-- **Zone Manager info:** policy hiện tại, gợi ý AI, trạng thái override
-
-Ngưỡng hiển thị (Dashboard):
-
-| Thông số | Cảnh báo | Nguy hiểm |
-|----------|----------|-----------|
-| CO₂ | > 800 ppm | > 1000 ppm |
-| PM₂.₅ | > 12 µg/m³ | > 35 µg/m³ |
-| Nhiệt độ | < 18 hoặc > 26 °C | — |
-| Độ ẩm | < 30% hoặc > 60% | — |
+DB mặc định: `iotdb` / user `admin` / pass `admin123` (đổi trước khi production).
 
 ---
 
-## 11. Xử lý sự cố
+## 9. Dashboard
 
-| Triệu chứng | Nguyên nhân | Cách xử lý |
-|-------------|-------------|------------|
-| `Failed to load DRL weights` | Thiếu `actor_weights.npz` hoặc chưa rebuild Docker | Chạy `load_model.py`, rebuild `mqtt-subscriber` |
-| Dashboard không có dữ liệu | ESP32 chưa kết nối MQTT / sai IP | Kiểm tra `MQTT_SERVER`, port 1885, firewall |
-| AI không chạy, chỉ rule | Policy `eco_standby` hoặc lỗi inference | Kiểm tra giờ hệ thống; xem log lỗi inference |
-| `python train.py` not found | Sai thư mục | Chạy từ `paper_reference/` |
-| Train OOM | TensorFlow trên CPU | Đóng app nặng; giảm batch hoặc dùng Colab notebook |
+Giao diện hiển thị nhiệt độ, độ ẩm, CO₂, PM₂.₅, góc van, trạng thái Zone Manager và cho phép chỉnh power, setpoint, mode từ xa. Ngưỡng cảnh báo trên UI: CO₂ > 800 ppm (warning), > 1000 (critical); PM₂.₅ > 12 / > 35 µg/m³.
+
+API telemetry do subscriber phục vụ trên port 5000 (nội bộ Docker network).
 
 ---
 
-## 12. Tài liệu tham khảo
+## 10. Lỗi thường gặp
 
-- Bài báo gốc: Guo et al., Applied Energy 2025 — DDPG HVAC co-optimization
-- Code train/simulator: `paper_reference/`
-- So sánh hiệu năng: `scripts/replicate_and_compare.py`
-- Backup project + model: [Google Drive](https://drive.google.com/drive/folders/1Z_hq9zdndvTVatvJ3bc4qA17vJzMEJJC)
+**`Failed to load DRL weights`** — thiếu `actor_weights.npz` hoặc image Docker cũ. Chạy `load_model.py`, rebuild container `mqtt-subscriber`.
+
+**Dashboard trống** — ESP32 chưa publish, sai IP/port MQTT, hoặc firewall chặn 1883/1885.
+
+**Chỉ thấy rule, không thấy DRL** — đang trong khung `eco_standby` (17:00–22:00), hoặc inference lỗi (xem log subscriber).
+
+**`python train.py` not found** — phải chạy từ thư mục `paper_reference/`.
+
+**Train hết RAM** — đóng ứng dụng nặng; hoặc dùng `train.ipynb` trên Colab.
+
+---
+
+## 11. Tài liệu liên quan
+
+- Paper: Guo et al., Applied Energy 2025
+- Train / sim: `paper_reference/`
+- Benchmark: `scripts/replicate_and_compare.py`
+- PCB: `docs/hardware_design_guide.md`
 
 ---
 
 ## License
 
-MIT License (hoặc license bạn chọn cho repo).
+MIT
