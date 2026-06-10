@@ -4,6 +4,7 @@ dist/
 coverage/
 .DS_Store
 *.log
+*.bak
 .env*
 !.env.example
 mosquitto/data/*.db
@@ -11,3 +12,13 @@ sdkconfig*
 esp/station/dependencies.lock
 esp/station/main/Kconfig.projbuild
 /esp/*
+
+# Python / ML
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/
+paper_reference/logs/
+paper_reference/.venv/
+paper_reference/miniconda3/

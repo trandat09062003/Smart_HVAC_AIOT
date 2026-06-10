@@ -8,8 +8,8 @@ from datetime import datetime
 from drl.ddpg_agent import DDPGAgent, STATE_MIN, STATE_MAX, norm
 
 # ── Cấu hình MQTT ──────────────────────────────────────────
-BROKER    = "10.200.5.25"
-PORT      = 1883
+BROKER    = "192.168.1.8"
+PORT      = 1885
 DEVICE_ID = "indoor-01"
 TOPIC_SUB = "sensor/indoor"
 TOPIC_PUB = f"remote-control/{DEVICE_ID}"

@@ -1,10 +1,11 @@
+# Chạy song song với HVAC_Control (3000/1883) — Dashboard :3005, MQTT :1885
 services:
   app:
     build:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "3005:3000"
     environment:
       - NODE_ENV=production
       - TZ=Asia/Ho_Chi_Minh
@@ -14,19 +15,19 @@ services:
 
   mosquitto:
     image: eclipse-mosquitto:latest
-    container_name: mosquitto
+    container_name: ai-hvac-mosquitto
     restart: unless-stopped
     environment:
       TZ: Asia/Ho_Chi_Minh
     ports:
-      - "1883:1883"
+      - "1885:1883"
     volumes:
       - ./mosquitto/config:/mosquitto/config
       - ./mosquitto/data:/mosquitto/data
 
   timescaledb:
     image: timescale/timescaledb:latest-pg16
-    container_name: timescaledb
+    container_name: ai-hvac-timescaledb
     restart: unless-stopped
     environment:
       TZ: Asia/Ho_Chi_Minh
@@ -34,11 +35,11 @@ services:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin123
     volumes:
-      - timescale_data:/var/lib/postgresql/data
+      - timescale_ai_data:/var/lib/postgresql/data
 
   mqtt-subscriber:
     build: ./server/mqtt-subscriber
-    container_name: mqtt-subscriber
+    container_name: ai-hvac-mqtt-subscriber
     restart: unless-stopped
     depends_on:
       - mosquitto
@@ -56,4 +57,4 @@ services:
       PYTHONUNBUFFERED: 1
 
 volumes:
-  timescale_data:
+  timescale_ai_data:

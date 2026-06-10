@@ -399,7 +399,7 @@ class ZoneManager:
             
             if self.client:
                 try:
-                    self.client.publish(CONTROL_TOPIC, json.dumps(command), qos=1)
+                    self.client.publish(f"{CONTROL_TOPIC}/{device_id}", json.dumps(command), qos=1)
                     save_remote_control_state(command)
                     print(f"🤖 AI Zone Manager [{policy}]: Đã đẩy Setpoint & Ngưỡng tối ưu xuống ESP32 → Temp: {target_temp}°C | CO2: {co2_max} ppm | lý do: {reason}")
                 except Exception as e:
@@ -662,7 +662,7 @@ class TelemetryRequestHandler(BaseHTTPRequestHandler):
                 zone_manager.override_until = time.time() + 900  # 15 phút
                 zone_manager.current_policy = "manual"
 
-            result = client.publish(CONTROL_TOPIC, json.dumps(command), qos=1)
+            result = client.publish(f"{CONTROL_TOPIC}/{command['device_id']}", json.dumps(command), qos=1)
             result.wait_for_publish(timeout=3)
 
             if result.rc != mqtt.MQTT_ERR_SUCCESS:

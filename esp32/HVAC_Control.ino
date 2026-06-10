@@ -24,26 +24,28 @@
 // =========================================================================
 
 // 1. Cấu hình kết nối WiFi
-#define WIFI_SSID        "Happy House-2.4GH"      // Tên mạng WiFi
-#define WIFI_PASSWORD    "12345689"  // Mật khẩu WiFi
+#define WIFI_SSID        "Kata"                // Tên mạng WiFi
+#define WIFI_PASSWORD    "Katana3936@"         // Mật khẩu WiFi
 
-// 2. Cấu hình kết nối MQTT Broker (Kết nối tới Dashboard smart-hvac)
-#define MQTT_SERVER      "192.168.1.10"    // Địa chỉ IP của Raspberry Pi Server
-#define MQTT_PORT        1883                  // Cổng MQTT mặc định
+// 2. Cấu hình MQTT Broker (Docker AI_HVAC_Control trên PC — docker-compose.alt.yml)
+#define MQTT_SERVER      "192.168.1.8"         // IP máy chạy Docker trong mạng LAN
+#define MQTT_PORT        1885                  // Cổng MQTT host (map từ 1883 trong container)
 #define MQTT_DEVICE_ID   "indoor-01"           // ID thiết bị
 #define MQTT_PUB_TOPIC   "sensor/indoor"       // Topic gửi dữ liệu cảm biến
 #define MQTT_SUB_TOPIC   "remote-control/#"    // Topic nhận lệnh điều khiển (wildcard)
 
 // 3. Cấu hình chân kết nối phần cứng (Pin Definitions)
-#define I2C_SDA          8     // Chân SDA nối cảm biến SCD30
-#define I2C_SCL          9     // Chân SCL nối cảm biến SCD30
-#define PIN_RELAY_FAN    4     // Chân GPIO4 điều khiển Relay quạt tản
-#define RELAY_ACTIVE_LOW false // Sửa lỗi ngược: Đặt thành false (Kích HIGH để bật quạt, LOW để tắt)hái nhiệt độ
+#define I2C_SDA          8     // Chân SDA nối cảm biến SCD30 (Physical Pin 12 -> GPIO8)
+#define I2C_SCL          9     // Chân SCL nối cảm biến SCD30 (Physical Pin 15 -> GPIO9)
+#define PIN_RELAY_FAN    4     // Chân GPIO4 điều khiển Relay quạt tản (Physical Pin 4)
+#define RELAY_ACTIVE_LOW false // Kích HIGH để bật quạt, LOW để tắt
 #define USE_ONBOARD_RGB  true  // Đặt thành 'true' nếu dùng LED RGB WS2812B tích hợp trên board ESP32-S3
 #define PIN_RGB_WS2812   48    // Chân điều khiển LED RGB WS2812B (thường là 48 hoặc 38)
-#define PIN_GP2Y_LED     5     // Chân điều khiển LED cảm biến bụi GP2Y1010 (GPIO5)
-#define PIN_GP2Y_ANALOG  6     // Chân đọc Analog cảm biến bụi GP2Y1010 (GPIO6)
-#define PIN_SERVO        7     // Chân tín hiệu điều khiển van thông gió Servo (GPIO7)
+
+// Cấu hình chân UART cho cảm biến bụi PMS5003 (Physical Pin 9 -> GPIO16 (net PMS RX), Pin 10 -> GPIO17 (net PMS TX))
+#define PMS_RX           17    // ESP32 RX pin (connects to PMS TX net)
+#define PMS_TX           16    // ESP32 TX pin (connects to PMS RX net)
+#define PIN_SERVO        15    // Chân tín hiệu điều khiển van thông gió Servo (Physical Pin 8 -> GPIO15)
 
 // Cấu hình LEDC cho Servo
 #define SERVO_LEDC_CH    0     // Kênh LEDC cho Servo
@@ -384,37 +386,42 @@ void maintainMQTTConnection() {
 }
 
 /**
- * Hàm đọc và tính toán bụi mịn GP2Y1010AU0F
+ * Hàm đọc nồng độ bụi PM2.5 từ cảm biến bụi PMS (giao tiếp UART qua Serial2)
  */
-bool readGP2Y1010(float &pm25_val) {
-  static unsigned long lastSampleTime = 0;
-  unsigned long now = millis();
+bool readPMS(float &pm25_val) {
+  static uint8_t buffer[32];
+  static int index = 0;
+  bool hasNewData = false;
   
-  if (now - lastSampleTime >= 100) { // Đọc định kỳ mỗi 100ms
-    lastSampleTime = now;
+  while (Serial2.available() > 0) {
+    uint8_t ch = Serial2.read();
     
-    // Bật LED hồng ngoại
-    digitalWrite(PIN_GP2Y_LED, LOW); // Active LOW
-    delayMicroseconds(280);
+    // Tìm byte bắt đầu 0x42 và 0x4D
+    if (index == 0 && ch != 0x42) continue;
+    if (index == 1 && ch != 0x4D) {
+      index = 0;
+      continue;
+    }
     
-    // Đọc giá trị Analog
-    int adcVal = analogRead(PIN_GP2Y_ANALOG);
-    delayMicroseconds(40);
+    buffer[index++] = ch;
     
-    // Tắt LED
-    digitalWrite(PIN_GP2Y_LED, HIGH);
-    
-    // Quy đổi điện áp (3.3V / 4095)
-    float voltage = adcVal * (3.3 / 4095.0);
-    
-    // Quy đổi ra nồng độ bụi mịn PM2.5 (ug/m3): Dust = 170 * Voltage - 100
-    float density = 170.0 * voltage - 100.0;
-    if (density < 0.0) density = 0.0;
-    
-    pm25_val = density;
-    return true;
+    if (index == 32) {
+      index = 0;
+      // Kiểm tra checksum
+      uint16_t sum = 0;
+      for (int i = 0; i < 30; i++) {
+        sum += buffer[i];
+      }
+      uint16_t checksum = ((uint16_t)buffer[30] << 8) | buffer[31];
+      if (sum == checksum) {
+        // Nồng độ PM2.5 (Standard particle) nằm ở byte 12 và 13
+        uint16_t pm25_read = ((uint16_t)buffer[12] << 8) | buffer[13];
+        pm25_val = (float)pm25_read;
+        hasNewData = true;
+      }
+    }
   }
-  return false;
+  return hasNewData;
 }
 
 // =========================================================================
@@ -470,11 +477,9 @@ void setup() {
   // 4. Khởi tạo mạng WiFi
   setupWiFi();
 
-  // 4.5. Khởi tạo chân điều khiển và đọc cảm biến bụi GP2Y1010
-  pinMode(PIN_GP2Y_LED, OUTPUT);
-  digitalWrite(PIN_GP2Y_LED, HIGH); // Tắt LED hồng ngoại ban đầu (Active LOW)
-  pinMode(PIN_GP2Y_ANALOG, INPUT);
-  Serial.printf("[GP2Y1010] Khoi tao chan: LED -> GPIO%d, Analog -> GPIO%d\n", PIN_GP2Y_LED, PIN_GP2Y_ANALOG);
+  // 4.5. Khởi tạo UART cho cảm biến bụi PMS
+  Serial2.begin(9600, SERIAL_8N1, PMS_RX, PMS_TX);
+  Serial.printf("[PMS] Khoi tao UART: RX -> GPIO%d, TX -> GPIO%d\n", PMS_RX, PMS_TX);
 
   // 4.6. Khởi tạo PWM điều khiển Servo van thông gió
   ledcSetup(SERVO_LEDC_CH, SERVO_LEDC_HZ, SERVO_LEDC_RES);
@@ -495,8 +500,8 @@ void setup() {
 }
 
 void loop() {
-  // Đọc dữ liệu từ cảm biến bụi mịn GP2Y1010 liên tục
-  readGP2Y1010(latestPM25);
+  // Đọc dữ liệu từ cảm biến bụi mịn PMS liên tục
+  readPMS(latestPM25);
 
   // 1. Tự động duy trì và kết nối lại WiFi nếu mất mạng
   maintainWiFiConnection();
