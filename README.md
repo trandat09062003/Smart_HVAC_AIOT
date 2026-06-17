@@ -12,11 +12,11 @@ Repository: [github.com/trandat09062003/Smart_HVAC_AIOT](https://github.com/tran
 
 Hệ thống chia làm ba tầng:
 
-**Tầng edge (ESP32-S3)** đọc cảm biến SCD30 (I²C) và PMS5003 (UART), điều khiển relay quạt, servo van và LED trạng thái. Firmware vẫn có logic rule cục bộ để an toàn khi mất WiFi hoặc MQTT.
+**Tầng edge (ESP32-S3)** đóng vai trò là một Node cảm biến thông minh, đọc cảm biến SCD30 (I²C) và PMS5003 (UART), sau đó hiển thị trực quan lên màn hình LCD I2C. Telemetry được gửi về server qua MQTT, đồng thời LCD sẽ nhận phản hồi để hiển thị các quyết định điều khiển mô phỏng của AI.
 
 **Tầng server (Docker)** gồm Mosquitto, TimescaleDB và service Python `mqtt-subscriber`. Service này lưu telemetry, expose REST API cho dashboard, và chạy **AI Zone Manager** — module inference DDPG + chính sách theo khung giờ.
 
-**Tầng giao diện (React/Vite)** truy vấn API, vẽ biểu đồ realtime và gửi lệnh override.
+**Tầng giao diện (React/Vite)** truy vấn API, vẽ biểu đồ realtime và hiển thị so sánh hiệu năng điện năng mô phỏng.
 
 Luồng dữ liệu:
 
@@ -27,20 +27,19 @@ ESP32  --[sensor/indoor]-->  Mosquitto  -->  mqtt-subscriber  -->  TimescaleDB
 ESP32  <--[remote-control/indoor-01]--  AI Zone Manager (DDPG / rule fallback)
 ```
 
-Khi không load được trọng số model, subscriber tự chuyển sang rule-based (giờ làm việc, đêm ECO, chờ tiết kiệm, free cooling).
+Khi không load được trọng số model, subscriber tự chuyển sang rule-based (giờ làm việc, đêm ECO, chờ tiết kiệm, free cooling) để mô phỏng hoạt động.
 
 ---
 
 ## 2. Phần cứng
 
-| Linh kiện | Giao tiếp | GPIO |
-|-----------|-----------|------|
-| ESP32-S3-N16R8 | — | — |
-| Sensirion SCD30 | I²C | SDA=8, SCL=9 |
-| Plantower PMS5003 | UART | RX=17, TX=16 |
-| Relay quạt | Digital | 4 |
-| Servo van (0–90°) | PWM LEDC | 15 |
-| WS2812 RGB (tùy chọn) | — | 48 |
+| Linh kiện | Giao tiếp | GPIO | Ghi chú |
+|-----------|-----------|------|---------|
+| ESP32-S3-N16R8 | — | — | Vi điều khiển chính |
+| Sensirion SCD30 | I²C | SDA=8, SCL=9 | Cảm biến CO2, Nhiệt độ, Độ ẩm |
+| Màn hình LCD (I2C) | I²C | SDA=8, SCL=9 | LCD 1602/2004 dùng chung I2C bus với SCD30 |
+| Plantower PMS5003 | UART | RX=17, TX=16 | Cảm biến bụi mịn PM2.5 (PMS RX -> ESP TX) |
+| WS2812 RGB | — | 48 | LED trạng thái onboard |
 
 Sơ đồ PCB và layout chân chi tiết: `docs/hardware_design_guide.md`.
 
@@ -50,7 +49,8 @@ Sơ đồ PCB và layout chân chi tiết: `docs/hardware_design_guide.md`.
 
 ```
 Smart_HVAC_AIOT/
-├── esp32/HVAC_Control.ino          Firmware chính
+├── esp32/HVAC_Sensor_Node/         Firmware cho Node cảm biến tích hợp LCD
+│   └── HVAC_Sensor_Node.ino
 ├── server/mqtt-subscriber/
 │   ├── subscriber.py               MQTT + DB + AI Zone Manager
 │   ├── load_model.py               Export actor .h5 → .npz
@@ -241,23 +241,23 @@ docker compose -p ai_hvac_control -f docker-compose.alt.yml up -d --build
 
 ### Bước 3 — Cấu hình firmware
 
-Mở `esp32/HVAC_Control.ino`, sửa:
+Mở `esp32/HVAC_Sensor_Node/HVAC_Sensor_Node.ino`, sửa:
 
 ```cpp
 #define WIFI_SSID        "TenMangWiFi"
 #define WIFI_PASSWORD    "MatKhauWiFi"
-#define MQTT_SERVER      "192.168.x.x"   // IP máy chạy Docker
+#define MQTT_SERVER      "10.37.109.77"  // IP máy chạy Docker
 #define MQTT_PORT        1885            // 1883 nếu dùng docker-compose.yml
 #define MQTT_DEVICE_ID   "indoor-01"
 ```
 
-Upload bằng Arduino IDE (board ESP32-S3, thư viện trong `libraries/`).
+Upload bằng Arduino IDE (board ESP32-S3, thư viện LiquidCrystal_I2C và các thư viện trong `libraries/`).
 
 ### Bước 4 — Kiểm tra
 
-1. Dashboard mở được, có dữ liệu cảm biến.
+1. Dashboard mở được, hiển thị đầy đủ dữ liệu cảm biến thực tế.
 2. `docker logs ai-hvac-mqtt-subscriber -f` — MQTT connected, model loaded.
-3. ESP32 nhận lệnh `remote-control/indoor-01`, quạt/van phản ứng theo setpoint.
+3. ESP32 nhận phản hồi từ AI qua topic `remote-control/indoor-01` và hiển thị các thông số mô phỏng (AI Setpoint, Damper opening, Fan mode) lên màn hình LCD.
 
 ### Bước 5 — Phát triển frontend (tùy chọn)
 

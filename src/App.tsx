@@ -380,29 +380,42 @@ export default function App() {
   }, [pendingControl]);
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900 overflow-x-clip selection:bg-blue-500/20">
+    <div className="min-h-screen text-slate-100 overflow-x-clip selection:bg-blue-500/20">
       {/* --- TOP BAR --- */}
-      <header className="fixed top-0 left-0 right-0 h-16 bg-white/80 backdrop-blur-md border-b border-slate-200 z-50 px-4 md:px-8 flex items-center justify-between">
+      <header className="fixed top-0 left-0 right-0 h-16 bg-[#080c14]/80 backdrop-blur-md border-b border-slate-900/80 z-50 px-4 md:px-8 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <img src={mainLogo} alt="HVAC Sentinel Logo" className="h-10 object-contain" />
+          <img src={mainLogo} alt="HVAC Sentinel Logo" className="h-9 object-contain" />
+          <div className="hidden sm:flex flex-col">
+            <span className="text-xs font-black uppercase tracking-widest bg-gradient-to-r from-emerald-400 via-teal-300 to-blue-500 bg-clip-text text-transparent">HVAC Sentinel</span>
+            <span className="text-[8px] font-bold text-slate-500 uppercase tracking-tight">AI-IoT Optimization Platform</span>
+          </div>
         </div>
 
+        {/* System Status Indicators */}
         <div className="flex items-center gap-4">
-          <div className="hidden md:flex items-center gap-6 mr-6 border-r border-slate-200 pr-6">
-            <div className="flex flex-col items-end">
-              <span className="text-[10px] text-slate-400 uppercase font-bold tracking-widest">Uptime</span>
-              <span className="text-xs font-mono text-slate-600">12d 04h 22m</span>
+          <div className="hidden md:flex items-center gap-4 border-r border-slate-800 pr-6 mr-2">
+            <div className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse animate-glow-emerald" />
+              <span className="text-[9px] font-black uppercase text-slate-400">Node ESP32: Online</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse animate-glow-emerald" />
+              <span className="text-[9px] font-black uppercase text-slate-400">Broker MQTT: Connected</span>
+            </div>
+            <div className="flex flex-col items-end pl-2">
+              <span className="text-[9px] text-slate-500 uppercase font-bold tracking-widest">Uptime</span>
+              <span className="text-[10px] font-mono text-slate-300 font-bold">12d 04h 22m</span>
             </div>
           </div>
 
-          <div className="relative">
-            <Bell className="w-5 h-5 text-slate-400 hover:text-slate-600 cursor-pointer transition-colors" />
+          <div className="relative cursor-pointer">
+            <Bell className="w-4 h-4 text-slate-400 hover:text-slate-200 transition-colors" />
             {activeAlerts > 0 && (
-              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-slate-900" />
+              <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border border-[#080c14] animate-pulse animate-glow-red" />
             )}
           </div>
-          <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center overflow-hidden">
-             <User className="w-5 h-5 text-slate-400" />
+          <div className="w-7 h-7 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center overflow-hidden">
+             <User className="w-4 h-4 text-slate-400" />
           </div>
         </div>
       </header>
@@ -415,30 +428,30 @@ export default function App() {
           <div className="lg:col-span-8 space-y-6">
             
             {/* Header info */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <h2 className="text-2xl font-bold tracking-tight">System Overview</h2>
-                <p className="text-slate-400 text-sm">Zone: Main Server Hall A-42 • Floor 12</p>
+                <h2 className="text-xl font-black tracking-tight text-white uppercase">Tổng quan hệ thống</h2>
+                <p className="text-slate-500 text-xs mt-0.5">Khu vực: Phòng Server Hall A-42 • Tầng 12</p>
               </div>
               <div className="flex gap-2">
-                <button className="flex items-center gap-2 px-3 py-1.5 bg-white hover:bg-slate-50 rounded text-xs font-semibold text-slate-600 transition-colors border border-slate-200">
+                <button className="flex items-center gap-2 px-3 py-1.5 bg-slate-900/40 hover:bg-slate-800 border border-slate-850 hover:border-slate-700 rounded-xl text-[10px] font-bold text-slate-300 transition-colors cursor-pointer">
                   <History className="w-3.5 h-3.5" />
-                  Logs
+                  Nhật ký Lỗi
                 </button>
-                <button className="flex items-center gap-2 px-3 py-1.5 bg-white hover:bg-slate-50 rounded text-xs font-semibold text-slate-600 transition-colors border border-slate-200">
+                <button className="flex items-center gap-2 px-3 py-1.5 bg-slate-900/40 hover:bg-slate-800 border border-slate-850 hover:border-slate-700 rounded-xl text-[10px] font-bold text-slate-300 transition-colors cursor-pointer">
                   <Maximize2 className="w-3.5 h-3.5" />
-                  Fullscreen
+                  Toàn màn hình
                 </button>
               </div>
             </div>
 
             {/* Metric Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
               <MetricCard reading={readings[0]} icon={Thermometer} />
               <MetricCard reading={readings[1]} icon={Droplets} />
               <MetricCard reading={readings[2]} icon={Wind} />
               <MetricCard reading={readings[3]} icon={Activity} />
-              <MetricCard reading={{id: 'valve_angle', name: 'Ventilation Valve', value: latestValveAngle, unit: '°', status: 'good', trend: 0 }} icon={RotateCw} />
+              <MetricCard reading={{id: 'valve_angle', name: 'Độ mở Van gió', value: latestValveAngle, unit: '°', status: 'good', trend: 0 }} icon={RotateCw} />
             </div>
 
             {/* Main Visualizations */}
@@ -448,30 +461,30 @@ export default function App() {
 
             {/* Secondary Intel */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-               <div className="bg-white rounded-lg p-5 border border-slate-200 shadow-sm flex flex-col justify-between min-h-[250px]">
+               <div className="glass-panel rounded-2xl p-5 border border-slate-800/85 shadow-xl flex flex-col justify-between min-h-[250px]">
                   <div>
                     <div className="flex items-center justify-between mb-4">
-                      <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">HIỆU QUẢ TỐI ƯU CỦA AI</h4>
-                      <span className="flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 animate-pulse">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Hiệu năng Tối ưu AI</h4>
+                      <span className="flex items-center gap-1 text-[8px] font-black px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse animate-glow-emerald" />
                         AI COORD ACTIVE
                       </span>
                     </div>
 
-                    <div className="space-y-3">
+                    <div className="space-y-3.5">
                       {/* Big Savings Metric */}
-                      <div className="flex items-center gap-4 bg-emerald-50/50 p-3 rounded-lg border border-emerald-100">
-                        <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-600 font-extrabold text-sm animate-pulse">
+                      <div className="flex items-center gap-4 bg-emerald-500/5 p-3.5 rounded-xl border border-emerald-500/10">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-500/15 flex items-center justify-center text-emerald-400 font-extrabold text-lg">
                           🍃
                         </div>
                         <div>
-                          <p className="text-[8px] text-emerald-600 font-extrabold uppercase tracking-tight">AI GIÚP TIẾT KIỆM ĐIỆN NĂNG</p>
-                          <p className="text-xl font-black font-mono text-emerald-700 leading-none mt-1">
+                          <p className="text-[9px] text-emerald-400 font-black uppercase tracking-wider">AI tiết kiệm điện năng</p>
+                          <p className="text-2xl font-black font-mono text-emerald-400 leading-none mt-1">
                             {latestEnergyBase > latestEnergy 
                               ? (((latestEnergyBase - latestEnergy) / latestEnergyBase) * 100).toFixed(1)
                               : '0.0'}%
                           </p>
-                          <p className="text-[8px] text-slate-500 font-bold mt-1">
+                          <p className="text-[9px] text-slate-500 font-bold mt-1">
                             Lượng điện giảm: {Math.max(0, latestEnergyBase - latestEnergy).toFixed(3)} kWh
                           </p>
                         </div>
@@ -479,24 +492,24 @@ export default function App() {
 
                       {/* Savings Breakdown */}
                       <div className="grid grid-cols-2 gap-3 text-xs font-semibold pt-1">
-                        <div className="border-r border-slate-100 pr-2">
-                          <p className="text-[8px] text-slate-400 font-extrabold uppercase">CHI PHÍ ĐÃ GIẢM</p>
-                          <p className="text-sm font-black text-emerald-600 mt-0.5">
+                        <div className="border-r border-slate-800 pr-2">
+                          <p className="text-[8px] text-slate-500 font-bold uppercase tracking-wider">Chi phí đã giảm</p>
+                          <p className="text-sm font-extrabold text-emerald-400 mt-0.5">
                             - {Math.max(0, (latestEnergyBase - latestEnergy) * 2500).toLocaleString('vi-VN', { maximumFractionDigits: 0 })} VNĐ
                           </p>
                         </div>
                         <div className="pl-2">
-                          <p className="text-[8px] text-slate-400 font-extrabold uppercase">GIẢM PHÁT THẢI CO2</p>
-                          <p className="text-sm font-black text-slate-700 mt-0.5">
+                          <p className="text-[8px] text-slate-500 font-bold uppercase tracking-wider">Giảm phát thải CO2</p>
+                          <p className="text-sm font-extrabold text-slate-300 mt-0.5">
                             - {Math.max(0, (latestEnergyBase - latestEnergy) * 0.5).toFixed(3)} kg
                           </p>
                         </div>
                       </div>
 
                       {/* Current active policy */}
-                      <div className="flex justify-between items-center border-t border-slate-100 pt-2 text-xs">
-                        <span className="text-slate-500 font-medium">Chế độ vận hành của AI</span>
-                        <span className="text-[9px] font-bold uppercase text-slate-800 bg-slate-100 px-2 py-0.5 rounded">
+                      <div className="flex justify-between items-center border-t border-slate-800/80 pt-2.5 text-xs">
+                        <span className="text-slate-400 font-semibold text-[10px]">Chế độ vận hành của AI</span>
+                        <span className="text-[8px] font-black uppercase text-slate-300 bg-slate-900 border border-slate-800 px-2.5 py-0.5 rounded-full">
                           {zoneManager?.currentPolicy === 'working_hours' && '💼 Giờ làm việc'}
                           {zoneManager?.currentPolicy === 'night_eco' && '🌙 Ngủ đêm ECO'}
                           {zoneManager?.currentPolicy === 'eco_standby' && '🍃 Chờ tiết kiệm'}
@@ -505,48 +518,50 @@ export default function App() {
                       </div>
 
                       {/* AI recommendation */}
-                      <div className="p-2.5 rounded bg-slate-50 border border-slate-100 text-[10px] text-slate-500 leading-relaxed font-medium">
-                        <span className="font-extrabold text-slate-400 block mb-0.5 uppercase text-[8px] tracking-tight">AI RECOMMENDATION:</span>
+                      <div className="p-2.5 rounded-xl bg-slate-950/40 border border-slate-900 text-[10px] text-slate-400 leading-relaxed font-semibold">
+                        <span className="font-black text-slate-500 block mb-0.5 uppercase text-[8px] tracking-wider">AI Khuyến cáo:</span>
                         {zoneManager?.aiRecommendation || 'Đang phân tích hoạt động phòng...'}
                       </div>
                     </div>
                   </div>
                </div>
-               <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between min-h-[280px]">
+
+               <div className="glass-panel rounded-2xl p-5 border border-slate-800/85 shadow-xl flex flex-col justify-between min-h-[280px]">
                   <div className="space-y-4">
                     <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center justify-between">
-                      <span>ĐIỆN NĂNG TIÊU THỤ (AI SIMULATOR)</span>
-                      <span className="flex items-center gap-1 text-[8px] font-extrabold px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-100">
-                        <span className="w-1 h-1 rounded-full bg-blue-500 animate-pulse" />
+                      <span>Điện năng tiêu thụ (Mô phỏng)</span>
+                      <span className="flex items-center gap-1 text-[8px] font-black px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                        <span className="w-1 h-1 rounded-full bg-blue-500 animate-pulse animate-glow-blue" />
                         Đang giám sát
                       </span>
                     </h4>
                     
                     {/* Real-time Load & Consumption */}
-                    <div className="grid grid-cols-2 gap-4 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                    <div className="grid grid-cols-2 gap-4 bg-slate-950/50 p-3.5 rounded-xl border border-slate-900">
                       <div>
-                        <p className="text-[8px] text-slate-400 uppercase font-extrabold tracking-tight">TỔNG TIÊU THỤ (AI)</p>
-                        <p className="text-2xl font-black font-mono text-slate-900 tracking-tight leading-none mt-1">
+                        <p className="text-[8px] text-slate-500 uppercase font-bold tracking-wider">Tổng tiêu thụ (AI)</p>
+                        <p className="text-xl font-extrabold font-mono text-slate-100 tracking-tight leading-none mt-1">
                           {latestEnergy.toFixed(3)}
-                          <span className="text-xs text-slate-400 ml-1 font-bold">kWh</span>
+                          <span className="text-xs text-slate-500 ml-1 font-bold">kWh</span>
                         </p>
-                        <p className="text-[8px] text-slate-500 font-semibold tracking-tighter leading-none mt-1">
+                        <p className="text-[8px] text-slate-500 font-bold tracking-tighter leading-none mt-1">
                           Tạm tính: {(latestEnergy * 2500).toLocaleString('vi-VN', { maximumFractionDigits: 0 })} VNĐ
                         </p>
                       </div>
                       <div>
-                        <p className="text-[8px] text-slate-400 uppercase font-extrabold tracking-tight">CÔNG SUẤT TỨC THÌ</p>
-                        <p className="text-2xl font-black font-mono text-blue-600 tracking-tight leading-none mt-1">
+                        <p className="text-[8px] text-slate-500 uppercase font-bold tracking-wider">Công suất tức thì</p>
+                        <p className="text-xl font-extrabold font-mono text-blue-400 tracking-tight leading-none mt-1">
                           {latestPower >= 1000 ? (latestPower / 1000).toFixed(2) : latestPower.toFixed(0)}
-                          <span className="text-xs text-slate-400 ml-1 font-bold">{latestPower >= 1000 ? 'kW' : 'W'}</span>
+                          <span className="text-xs text-slate-500 ml-1 font-bold">{latestPower >= 1000 ? 'kW' : 'W'}</span>
                         </p>
-                        <span className={`inline-flex items-center gap-0.5 text-[8px] font-extrabold px-1.5 py-0.5 rounded mt-1.5 ${
+                        <span className={cn(
+                          "inline-flex items-center gap-0.5 text-[8px] font-black px-1.5 py-0.5 rounded-full mt-1.5 border",
                           latestPower < 50 
-                            ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                             : latestPower < 500
-                            ? 'bg-sky-50 text-sky-600 border border-sky-100'
-                            : 'bg-orange-50 text-orange-600 border border-orange-100'
-                        }`}>
+                            ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                            : 'bg-orange-500/10 text-orange-400 border-orange-500/20'
+                        )}>
                           {latestPower < 50 ? 'Chờ/Tiết kiệm' : latestPower < 500 ? 'Tải Trung bình' : 'Tải Cao'}
                         </span>
                       </div>
@@ -554,54 +569,54 @@ export default function App() {
 
                     {/* Breakdown section */}
                     <div className="space-y-1.5">
-                      <span className="text-[8px] text-slate-400 font-extrabold uppercase block">Phân rã công suất (AI Breakdown)</span>
+                      <span className="text-[8px] text-slate-500 font-bold uppercase tracking-wider block">Phân rã công suất mô phỏng</span>
                       <div className="grid grid-cols-3 gap-2">
-                        <div className="bg-slate-50/50 border border-slate-100 rounded p-2 text-center">
-                          <p className="text-[8px] text-slate-400 font-bold uppercase tracking-tight">ĐIỀU HÒA (AC)</p>
-                          <p className="text-xs font-black font-mono text-slate-700 mt-0.5">{latestPowerAc.toFixed(0)} W</p>
+                        <div className="bg-slate-950/30 border border-slate-900 rounded-lg p-2 text-center">
+                          <p className="text-[8px] text-slate-500 font-bold uppercase tracking-wider">Điều hòa (AC)</p>
+                          <p className="text-xs font-black font-mono text-slate-300 mt-0.5">{latestPowerAc.toFixed(0)} W</p>
                         </div>
-                        <div className="bg-slate-50/50 border border-slate-100 rounded p-2 text-center">
-                          <p className="text-[8px] text-slate-400 font-bold uppercase tracking-tight">QUẠT GIÓ (FAN)</p>
-                          <p className="text-xs font-black font-mono text-slate-700 mt-0.5">{latestPowerFan.toFixed(0)} W</p>
+                        <div className="bg-slate-950/30 border border-slate-900 rounded-lg p-2 text-center">
+                          <p className="text-[8px] text-slate-500 font-bold uppercase tracking-wider">Quạt gió (Fan)</p>
+                          <p className="text-xs font-black font-mono text-slate-300 mt-0.5">{latestPowerFan.toFixed(0)} W</p>
                         </div>
-                        <div className="bg-slate-50/50 border border-slate-100 rounded p-2 text-center">
-                          <p className="text-[8px] text-slate-400 font-bold uppercase tracking-tight">HỆ THỐNG (STBY)</p>
-                          <p className="text-xs font-black font-mono text-slate-700 mt-0.5">5 W</p>
+                        <div className="bg-slate-950/30 border border-slate-900 rounded-lg p-2 text-center">
+                          <p className="text-[8px] text-slate-500 font-bold uppercase tracking-wider font-semibold">Hệ thống (Stby)</p>
+                          <p className="text-xs font-black font-mono text-slate-300 mt-0.5">5 W</p>
                         </div>
                       </div>
                     </div>
 
                     {/* Baseline Comparison section */}
-                    <div className="border-t border-slate-100 pt-3 space-y-2">
+                    <div className="border-t border-slate-800/80 pt-3 space-y-2">
                       <div className="flex justify-between items-center">
-                        <span className="text-[8px] text-slate-400 font-extrabold uppercase">So sánh hiệu quả với Baseline</span>
+                        <span className="text-[8px] text-slate-500 font-bold uppercase tracking-wider">So sánh hiệu quả với Baseline</span>
                         {latestEnergyBase > 0 && latestEnergyBase > latestEnergy ? (
-                          <span className="inline-flex items-center gap-0.5 text-[8.5px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100 animate-pulse">
+                          <span className="inline-flex items-center gap-0.5 text-[8px] font-black text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
                             🍃 AI tiết kiệm: {(((latestEnergyBase - latestEnergy) / latestEnergyBase) * 100).toFixed(1)}%
                           </span>
                         ) : (
-                          <span className="text-[8px] text-slate-400 font-bold italic">Đang phân tích...</span>
+                          <span className="text-[8px] text-slate-500 font-bold italic">Đang phân tích...</span>
                         )}
                       </div>
                       
                       <div className="grid grid-cols-2 gap-4 text-xs font-semibold">
-                        <div className="border-r border-slate-100 pr-2">
-                          <p className="text-[8px] text-emerald-600 font-extrabold uppercase">HỆ THỐNG AI TỐI ƯU</p>
-                          <p className="text-sm font-black font-mono text-slate-800 mt-0.5">{latestEnergy.toFixed(3)} kWh</p>
-                          <p className="text-[7.5px] text-slate-400 font-bold">~{(latestEnergy * 2500).toLocaleString('vi-VN', { maximumFractionDigits: 0 })} VNĐ</p>
+                        <div className="border-r border-slate-800 pr-2">
+                          <p className="text-[8px] text-emerald-400 font-bold uppercase tracking-wider">Hệ thống AI Tối ưu</p>
+                          <p className="text-xs font-black font-mono text-slate-200 mt-0.5">{latestEnergy.toFixed(3)} kWh</p>
+                          <p className="text-[8px] text-slate-500 font-bold">~{(latestEnergy * 2500).toLocaleString('vi-VN', { maximumFractionDigits: 0 })} VNĐ</p>
                         </div>
                         <div className="pl-2">
-                          <p className="text-[8px] text-slate-400 font-extrabold uppercase">BASELINE (CHƯA TỐI ƯU)</p>
-                          <p className="text-sm font-black font-mono text-slate-400 mt-0.5">{latestEnergyBase.toFixed(3)} kWh</p>
-                          <p className="text-[7.5px] text-slate-400 font-bold">~{(latestEnergyBase * 2500).toLocaleString('vi-VN', { maximumFractionDigits: 0 })} VNĐ</p>
+                          <p className="text-[8px] text-slate-500 font-bold uppercase tracking-wider">Baseline (Không tối ưu)</p>
+                          <p className="text-xs font-black font-mono text-slate-400 mt-0.5">{latestEnergyBase.toFixed(3)} kWh</p>
+                          <p className="text-[8px] text-slate-500 font-bold">~{(latestEnergyBase * 2500).toLocaleString('vi-VN', { maximumFractionDigits: 0 })} VNĐ</p>
                         </div>
                       </div>
                     </div>
                   </div>
                   
                   {/* Sparkline chart at the very bottom */}
-                  <div className="flex items-center justify-between pt-3 border-t border-slate-100 mt-3">
-                    <span className="text-[8px] text-slate-400 font-extrabold uppercase">Biểu đồ tải (7 điểm gần nhất)</span>
+                  <div className="flex items-center justify-between pt-3 border-t border-slate-800/80 mt-3">
+                    <span className="text-[8px] text-slate-500 font-bold uppercase tracking-wider">Biểu đồ tải (7 điểm gần nhất)</span>
                     <div className="w-32 h-8 flex items-end gap-0.5">
                       {(() => {
                         const lastPowerPoints = history.slice(-7);
@@ -613,7 +628,7 @@ export default function App() {
                             <div 
                               key={i} 
                               className={`flex-1 rounded-t-sm transition-all duration-500 ${
-                                power < 50 ? 'bg-emerald-400/60' : power < 500 ? 'bg-sky-400/80' : 'bg-blue-500'
+                                power < 50 ? 'bg-emerald-500/50' : power < 500 ? 'bg-blue-500/60' : 'bg-blue-400'
                               }`}
                               style={{ height: `${Math.max(10, heightPercent)}%` }}
                               title={`AI: ${power.toFixed(0)}W | Baseline: ${(pt.power_base ?? 0).toFixed(0)}W`}
@@ -627,7 +642,7 @@ export default function App() {
             </div>
           </div>
 
-          {/* Dashbaord Right Section: Controls & Status */}
+          {/* Dashboard Right Section: Controls & Status */}
           <div className="lg:col-span-4 space-y-6">
             
             {isControlStateReady ? (
@@ -637,83 +652,83 @@ export default function App() {
                 onControlChange={sendRemoteControl}
               />
             ) : (
-              <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xl h-full min-h-[560px] flex flex-col">
+              <div className="glass-panel rounded-2xl p-6 border border-slate-850 shadow-2xl h-full min-h-[560px] flex flex-col">
                 <div className="flex items-center justify-between mb-6">
                   <div>
-                    <h3 className="text-sm font-bold uppercase tracking-widest text-slate-400">AC Unit 01</h3>
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500">AC UNIT 01</h3>
                     <div className="flex items-center gap-2 mt-1">
-                      <div className="w-1.5 h-1.5 rounded-full bg-slate-300 animate-pulse" />
-                      <span className="text-[10px] font-bold text-slate-400 uppercase">Loading State</span>
+                      <div className="w-1.5 h-1.5 rounded-full bg-slate-600 animate-pulse" />
+                      <span className="text-[10px] font-bold text-slate-500 uppercase">Đang tải cấu hình...</span>
                     </div>
                   </div>
-                  <div className="w-11 h-11 rounded-full bg-slate-100 animate-pulse" />
+                  <div className="w-11 h-11 rounded-xl bg-slate-900 border border-slate-800 animate-pulse" />
                 </div>
                 <div className="flex-1 flex flex-col items-center justify-center gap-8">
-                  <div className="w-full aspect-square max-w-[200px] rounded-full border-8 border-slate-50 bg-slate-50 animate-pulse" />
+                  <div className="w-full aspect-square max-w-[190px] rounded-full border-4 border-slate-800 bg-slate-900/20 animate-pulse" />
                   <div className="w-full space-y-3">
-                    <div className="h-3 w-32 mx-auto bg-slate-100 rounded animate-pulse" />
+                    <div className="h-3 w-32 mx-auto bg-slate-900 rounded animate-pulse" />
                     <div className="grid grid-cols-3 gap-3">
                       {[0, 1, 2].map((item) => (
-                        <div key={item} className="h-20 rounded-2xl bg-slate-50 border-2 border-slate-50 animate-pulse" />
+                        <div key={item} className="h-16 rounded-xl bg-slate-900/40 border border-slate-800 animate-pulse" />
                       ))}
                     </div>
                   </div>
                   <div className="w-full space-y-3">
-                    <div className="h-3 w-24 bg-slate-100 rounded animate-pulse" />
-                    <div className="h-12 rounded-xl bg-slate-50 border border-slate-100 animate-pulse" />
+                    <div className="h-3 w-24 bg-slate-900 rounded animate-pulse" />
+                    <div className="h-10 rounded-xl bg-slate-900/40 border border-slate-800 animate-pulse" />
                   </div>
                 </div>
               </div>
             )}
 
             {/* Weather */}
-            <div className="bg-white rounded-lg p-5 border border-slate-200 shadow-sm">
+            <div className="glass-panel rounded-2xl p-5 border border-slate-800/85 shadow-xl">
                <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Weather</h4>
-                  <div className="flex items-center gap-1 text-[10px] text-slate-400 font-medium uppercase">
+                  <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Thời tiết Hà Nội</h4>
+                  <div className="flex items-center gap-1 text-[9px] text-slate-500 font-bold uppercase tracking-wider">
                     <MapPin className="w-3 h-3" />
-                    Today
+                    Hôm nay
                   </div>
                </div>
                 {hanoiWeather ? (
-                  <div className="space-y-4">
+                  <div className="space-y-3.5">
                     {[
-                      { item: 'Current Temperature', status: `${hanoiWeather.temperature.toFixed(1)}°C`, color: 'text-blue-600' },
-                      { item: 'Condition', status: getWeatherLabel(hanoiWeather.weatherCode), color: 'text-sky-600' },
-                      { item: 'Feels Like', status: `${hanoiWeather.apparentTemperature.toFixed(1)}°C`, color: 'text-slate-600' },
+                      { item: 'Nhiệt độ Hiện tại', status: `${hanoiWeather.temperature.toFixed(1)}°C`, color: 'text-blue-400' },
+                      { item: 'Trạng thái', status: getWeatherLabel(hanoiWeather.weatherCode), color: 'text-sky-400' },
+                      { item: 'Cảm giác thực tế', status: `${hanoiWeather.apparentTemperature.toFixed(1)}°C`, color: 'text-slate-300' },
                     ].map((step) => (
-                      <div key={step.item} className="flex justify-between items-center border-b border-slate-100 pb-2">
-                         <span className="text-xs text-slate-600 font-medium">{step.item}</span>
-                         <span className={cn("text-[10px] font-bold uppercase", step.color)}>{step.status}</span>
+                      <div key={step.item} className="flex justify-between items-center border-b border-slate-900 pb-2">
+                         <span className="text-xs text-slate-400 font-semibold">{step.item}</span>
+                         <span className={cn("text-[10px] font-black uppercase tracking-wider", step.color)}>{step.status}</span>
                       </div>
                     ))}
                     <div className="grid grid-cols-2 gap-x-4 gap-y-3">
                       {[
-                        { label: 'Humidity', value: `${hanoiWeather.humidity}%`, icon: Droplets },
-                        { label: 'Wind', value: `${hanoiWeather.windSpeed.toFixed(1)} km/h`, icon: Wind },
-                        { label: 'High / Low', value: `${hanoiWeather.maxTemp.toFixed(1)} / ${hanoiWeather.minTemp.toFixed(1)}°C`, icon: Thermometer },
-                        { label: 'Rain Chance', value: `${hanoiWeather.precipitationProbability}%`, icon: CloudRain },
+                        { label: 'Độ ẩm', value: `${hanoiWeather.humidity}%`, icon: Droplets },
+                        { label: 'Tốc độ Gió', value: `${hanoiWeather.windSpeed.toFixed(1)} km/h`, icon: Wind },
+                        { label: 'Cao / Thấp', value: `${hanoiWeather.maxTemp.toFixed(1)} / ${hanoiWeather.minTemp.toFixed(1)}°C`, icon: Thermometer },
+                        { label: 'Khả năng mưa', value: `${hanoiWeather.precipitationProbability}%`, icon: CloudRain },
                       ].map((item) => (
-                        <div key={item.label} className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
-                          <div className="flex items-center gap-1.5 text-slate-400 mb-1">
+                        <div key={item.label} className="flex items-center justify-between gap-2 border-b border-slate-900 pb-2">
+                          <div className="flex items-center gap-1 text-slate-500 mb-1">
                             <item.icon className="w-3 h-3" />
-                            <span className="text-[9px] font-bold uppercase">{item.label}</span>
+                            <span className="text-[8px] font-bold uppercase tracking-wider">{item.label}</span>
                           </div>
-                          <p className="text-xs font-mono font-bold text-slate-700">{item.value}</p>
+                          <p className="text-xs font-mono font-bold text-slate-300">{item.value}</p>
                         </div>
                       ))}
                     </div>
                   </div>
                 ) : (
                   <div className="h-28 flex items-center justify-center">
-                    <span className="text-xs text-slate-400 font-medium">Loading weather...</span>
+                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider animate-pulse">Đang tải thời tiết...</span>
                   </div>
                 )}
             </div>
 
             {/* Notification Center */}
-            <div className="bg-white rounded-lg p-6 border border-slate-200 shadow-sm">
-               <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">System Alerts</h4>
+            <div className="glass-panel rounded-2xl p-5 border border-slate-800/85 shadow-xl">
+               <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Cảnh báo hệ thống</h4>
                <div className="space-y-4">
                   <AnimatePresence>
                     {activeAlerts > 0 ? (
@@ -724,20 +739,22 @@ export default function App() {
                           animate={{ opacity: 1, x: 0 }}
                           exit={{ opacity: 0, x: -20 }}
                           className={cn(
-                            "p-3 rounded border flex items-start gap-3",
-                            r.status === 'critical' ? "bg-red-50 border-red-100" : "bg-amber-50 border-amber-100"
+                            "p-3 rounded-xl border flex items-start gap-3",
+                            r.status === 'critical' 
+                              ? "bg-red-500/10 border-red-500/20 text-red-300" 
+                              : "bg-amber-500/10 border-amber-500/20 text-amber-300"
                           )}
                         >
-                           <AlertTriangle className={cn("w-4 h-4 shrink-0", r.status === 'critical' ? "text-red-500" : "text-amber-500")} />
+                           <AlertTriangle className={cn("w-4 h-4 shrink-0 mt-0.5", r.status === 'critical' ? "text-red-400" : "text-amber-400")} />
                            <div className="space-y-1">
-                              <p className="text-[11px] font-bold text-slate-800 uppercase tracking-tight">High {r.name} Detected</p>
-                              <p className="text-[10px] text-slate-500">Current value {r.value.toFixed(1)}{r.unit} exceeds threshold.</p>
+                              <p className="text-[10px] font-black uppercase tracking-wider">Phát hiện vượt ngưỡng {r.name}</p>
+                              <p className="text-[9px] text-slate-400 leading-normal font-semibold">Giá trị hiện tại là {r.value.toFixed(1)}{r.unit} đã vượt quá giới hạn an toàn quy định.</p>
                            </div>
                         </motion.div>
                       ))
                     ) : (
                       <div className="text-center py-6">
-                        <p className="text-[10px] text-slate-400 uppercase font-bold">All systems nominal</p>
+                        <p className="text-[9px] text-slate-500 uppercase font-black tracking-wider">Hệ thống đang vận hành ổn định</p>
                       </div>
                     )}
                   </AnimatePresence>
@@ -755,14 +772,14 @@ export default function App() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 16 }}
             className={cn(
-              "fixed bottom-6 right-6 z-[60] max-w-sm rounded-lg border px-4 py-3 shadow-xl flex items-start gap-3",
+              "fixed bottom-6 right-6 z-[60] max-w-sm rounded-xl border px-4 py-3 shadow-2xl flex items-start gap-3 glass-panel",
               toast.type === 'error'
-                ? "bg-red-50 border-red-200 text-red-700"
-                : "bg-blue-50 border-blue-200 text-blue-700"
+                ? "border-red-500/30 text-red-400 shadow-[0_4px_20px_rgba(239,68,68,0.15)] animate-glow-red"
+                : "border-blue-500/30 text-blue-400 shadow-[0_4px_20px_rgba(59,130,246,0.15)] animate-glow-blue"
             )}
           >
             <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-            <p className="text-xs font-bold">{toast.message}</p>
+            <p className="text-xs font-black uppercase tracking-wider">{toast.message}</p>
           </motion.div>
         )}
       </AnimatePresence>

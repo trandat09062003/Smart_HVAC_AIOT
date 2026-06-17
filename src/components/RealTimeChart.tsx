@@ -18,12 +18,12 @@ interface RealTimeChartProps {
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-white border border-slate-200 p-3 rounded-lg shadow-xl outline-none">
-        <p className="text-xs text-slate-400 mb-2 font-mono">{label}</p>
-        <div className="space-y-1">
+      <div className="glass-panel border-slate-800/80 p-3 rounded-xl shadow-2xl outline-none">
+        <p className="text-[10px] text-slate-400 mb-2 font-mono font-bold tracking-wider">{label}</p>
+        <div className="space-y-1.5">
           {payload.map((entry: any, index: number) => (
             <div key={index} className="flex items-center justify-between gap-8">
-              <span className="text-xs font-bold text-slate-600 uppercase tracking-tighter">
+              <span className="text-[10px] font-bold text-slate-300 uppercase tracking-wider">
                 {entry.name}
               </span>
               <span className="text-xs font-mono font-bold" style={{ color: entry.color }}>
@@ -40,34 +40,34 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 export const RealTimeChart: React.FC<RealTimeChartProps> = ({ data }) => {
   return (
-    <div className="w-full h-full min-h-[300px] bg-white rounded-lg p-4 border border-slate-200 shadow-sm">
+    <div className="w-full h-full min-h-[300px] glass-panel rounded-2xl p-5 border shadow-xl">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">SO SÁNH ĐIỆN NĂNG TIÊU THỤ TÍCH LŨY</h3>
-          <p className="text-[10px] text-slate-500 font-medium">Đối chiếu năng lượng tiêu hao: Hệ thống AI vs Baseline truyền thống (kWh)</p>
+          <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400">SO SÁNH ĐIỆN NĂNG TIÊU THỤ TÍCH LŨY</h3>
+          <p className="text-[10px] text-slate-500 font-semibold tracking-wide mt-1">Đối chiếu năng lượng tiêu hao: Hệ thống AI vs Baseline truyền thống (kWh)</p>
         </div>
       </div>
 
       <div className="h-[250px] w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+          <AreaChart data={data} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
             <defs>
               <linearGradient id="colorEnergy" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#10b981" stopOpacity={0.15}/>
+                <stop offset="5%" stopColor="#10b981" stopOpacity={0.25}/>
                 <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
               </linearGradient>
               <linearGradient id="colorEnergyBase" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#ef4444" stopOpacity={0.1}/>
+                <stop offset="5%" stopColor="#ef4444" stopOpacity={0.15}/>
                 <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" opacity={1} />
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e293b" opacity={0.6} />
             <XAxis 
               dataKey="time" 
               hide 
             />
             <YAxis 
-              stroke="#94a3b8" 
+              stroke="#64748b" 
               fontSize={10} 
               tickLine={false} 
               axisLine={false} 
@@ -78,14 +78,14 @@ export const RealTimeChart: React.FC<RealTimeChartProps> = ({ data }) => {
               verticalAlign="bottom" 
               height={36} 
               iconType="circle" 
-              wrapperStyle={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, color: '#64748b', paddingTop: '20px' }}
+              wrapperStyle={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700, color: '#94a3b8', paddingTop: '20px' }}
             />
             <Area
               type="monotone"
               dataKey="energy"
               name="Điện năng AI tối ưu"
               stroke="#10b981"
-              strokeWidth={2}
+              strokeWidth={2.5}
               fillOpacity={1}
               fill="url(#colorEnergy)"
               isAnimationActive={false}
@@ -106,3 +106,4 @@ export const RealTimeChart: React.FC<RealTimeChartProps> = ({ data }) => {
     </div>
   );
 };
+
