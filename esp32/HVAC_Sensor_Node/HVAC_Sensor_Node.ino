@@ -64,6 +64,7 @@ float currentPM25 = 0.0;
 float aiSetpoint = 25.0;
 float aiDamper = 0.3;
 bool aiPower = true;
+String aiOperationMode = "auto";
 String aiFanPower = "auto";
 bool receivedAiState = false;
 
@@ -101,9 +102,16 @@ void updateLCD() {
       lcd.setCursor(0, 1);
       lcd.print("Waiting server..");
     } else {
-      // Dòng 0: AI SETPOINT: XX.X
+      // Dòng 0: AI:XX.X Mode:XXX
       lcd.setCursor(0, 0);
-      lcd.printf("AI Setpoint:%4.1f", aiSetpoint);
+      String modeUpper = aiOperationMode;
+      modeUpper.toUpperCase();
+      if (modeUpper == "AUTO") modeUpper = "AUT";
+      else if (modeUpper == "COOL") modeUpper = "COL";
+      else if (modeUpper == "HEAT") modeUpper = "HET";
+      else if (modeUpper == "OFF") modeUpper = "OFF";
+      
+      lcd.printf("AI:%4.1fC AC:%-3s", aiSetpoint, modeUpper.c_str());
       
       // Dòng 1: Dmp:XX% Fan:XXX
       lcd.setCursor(0, 1);
@@ -217,6 +225,22 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       }
       rawFan[idx] = '\0';
       aiFanPower = String(rawFan);
+    }
+  }
+
+  char* opModePtr = strstr(message, "\"operationMode\"");
+  if (opModePtr != NULL) {
+    char* valPtr = strchr(opModePtr, ':');
+    if (valPtr != NULL) {
+      char rawMode[16];
+      int idx = 0;
+      char* readPtr = valPtr + 1;
+      while (*readPtr == ' ' || *readPtr == '"') readPtr++;
+      while (*readPtr != ',' && *readPtr != '}' && *readPtr != '"' && *readPtr != '\0' && idx < 15) {
+        rawMode[idx++] = *readPtr++;
+      }
+      rawMode[idx] = '\0';
+      aiOperationMode = String(rawMode);
     }
   }
 }
@@ -385,10 +409,51 @@ void loop() {
     updateLCD();
   }
 
+  // Cập nhật LED hệ thống mỗi 500ms (Blink/Color update)
+  static unsigned long lastLedTime = 0;
+  if (now - lastLedTime >= 500) {
+    lastLedTime = now;
+    updateSystemLED();
+  }
+
   // Luân phiên chuyển đổi màn hình hiển thị LCD sau mỗi 3 giây
   if (now - lastLcdSwitchTime >= LCD_SWITCH_INTERVAL) {
     lastLcdSwitchTime = now;
     lcdScreenState = 1 - lcdScreenState; // Toggle giữa 0 (Sensor) và 1 (AI Simulation)
     updateLCD();
+  }
+}
+
+// =========================================================================
+// 💡 ĐIỀU KHIỂN LED RGB HỆ THỐNG
+// =========================================================================
+
+void updateSystemLED() {
+  if (WiFi.status() != WL_CONNECTED) {
+    // Nhấp nháy màu vàng cam khi mất WiFi
+    static bool blink = false;
+    blink = !blink;
+    if (blink) neopixelWrite(PIN_RGB_WS2812, 60, 20, 0); // Vàng cam dịu
+    else neopixelWrite(PIN_RGB_WS2812, 0, 0, 0);
+  } else if (!mqttClient.connected()) {
+    // Nhấp nháy màu đỏ khi mất MQTT
+    static bool blink = false;
+    blink = !blink;
+    if (blink) neopixelWrite(PIN_RGB_WS2812, 80, 0, 0); // Đỏ nháy
+    else neopixelWrite(PIN_RGB_WS2812, 0, 0, 0);
+  } else if (!receivedAiState) {
+    // Sáng màu xanh dương nhạt (cyan) khi đợi dữ liệu AI từ Server
+    neopixelWrite(PIN_RGB_WS2812, 0, 40, 40);
+  } else {
+    // Hiển thị màu theo chế độ hoạt động của điều hòa
+    if (!aiPower || aiOperationMode.equalsIgnoreCase("off")) {
+      neopixelWrite(PIN_RGB_WS2812, 0, 0, 0); // Tắt hẳn LED khi điều hòa tắt
+    } else if (aiOperationMode.equalsIgnoreCase("auto")) {
+      neopixelWrite(PIN_RGB_WS2812, 50, 0, 70); // Tím (Auto AI điều phối)
+    } else if (aiOperationMode.equalsIgnoreCase("cool")) {
+      neopixelWrite(PIN_RGB_WS2812, 0, 0, 75); // Xanh dương (Làm lạnh)
+    } else if (aiOperationMode.equalsIgnoreCase("heat")) {
+      neopixelWrite(PIN_RGB_WS2812, 70, 15, 0); // Đỏ cam (Làm nóng)
+    }
   }
 }
