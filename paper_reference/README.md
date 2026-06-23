@@ -1,47 +1,34 @@
 # Paper Reference — DRL Training
 
-Mã huấn luyện và mô phỏng DDPG theo Guo et al., *Applied Energy* 2025.
+Theo **Guo et al., Applied Energy 2025** ([DOI](https://doi.org/10.1016/j.apenergy.2024.124467)).
 
-**Hướng dẫn đầy đủ:** [README.md](../README.md)
+**Khác bài báo:** `OCCUPANCY_FIXED = 1` — một người cố định trong phòng (`config.py`).
 
 ## Huấn luyện
 
-Một script: **`train.py`** — khí hậu Hà Nội, 1 người, fine-tune từ `checkpoints_v2/`.
-
-| Cách | File |
-|------|------|
-| **Colab GPU** | `train.ipynb` |
-| Local CPU | `train.py` |
+| File | Môi trường |
+|------|------------|
+| `train.py` | Local CPU |
+| `train.ipynb` | Colab GPU |
 
 ```bash
 cd paper_reference
 python train.py
 ```
 
-| Biến môi trường | Mặc định | Ghi chú |
-|----------------|----------|---------|
-| `HANOI_EPISODES` | 150 | Paper gốc: 5000 |
-| `HANOI_DAYS_PER_MONTH` | 5 | Paper gốc: 30 |
+| Tham số | Mặc định (paper) | Biến môi trường |
+|---------|------------------|-----------------|
+| Episodes | 5000 | `TRAIN_EPISODES` |
+| Ngày/tháng | 30 | `DAYS_PER_MONTH` |
+| Tháng | 5–10 | cố định trong `config.py` |
+| Checkpoint | `checkpoints/` | resume tự động |
 
-**Colab GPU** — mở `paper_reference/train.ipynb`, bật T4 GPU, chạy tất cả cell.
+Train nhanh thử: `TRAIN_EPISODES=200 DAYS_PER_MONTH=5 python train.py`
 
-Hoặc chạy thủ công:
-
-```python
-!pip install -q tensorflow==2.16 numpy matplotlib
-%cd Smart_HVAC_AIOT/paper_reference
-import os
-os.environ["HANOI_EPISODES"] = "5000"
-os.environ["HANOI_DAYS_PER_MONTH"] = "30"
-!python train.py
-```
-
-Output: `checkpoints_hanoi/` + tự export `actor_weights.npz` cho server.
+## Export cho server
 
 ```bash
-# Export thủ công (nếu cần)
-cd ..
-set CHECKPOINT_DIR=paper_reference/checkpoints_hanoi
+set CHECKPOINT_DIR=paper_reference/checkpoints
 python server/mqtt-subscriber/load_model.py
 ```
 
@@ -49,12 +36,11 @@ python server/mqtt-subscriber/load_model.py
 
 ```
 paper_reference/
-├── checkpoints_v2/      Pretrain Seoul (bài báo gốc)
-├── checkpoints_hanoi/   Model Hà Nội (deploy)
-├── data/                weather_gen.py, hanoi_weather_gen.py
-├── drl/                 DDPG agent
-├── simulator/           Hybrid sim (5 models)
-├── train.py             Huấn luyện DDPG (local)
-├── train.ipynb          Huấn luyện trên Colab GPU
-└── logs/                Output train (local)
+├── config.py          Hyperparameters (paper + 1 occupant)
+├── train.py           Train local
+├── train.ipynb        Train Colab
+├── checkpoints/       actor.weights.h5, critic.weights.h5
+├── data/weather_gen.py
+├── drl/               DDPG agent
+└── simulator/         Hybrid sim (5 models)
 ```

@@ -7,7 +7,7 @@
  * 
  * Tính năng chính:
  *   1. Đọc dữ liệu môi trường thực tế: CO2, Nhiệt độ, Độ ẩm (SCD30) và Bụi mịn PM2.5 (PMS7003).
- *   2. Hiển thị thông số trực quan lên màn hình LCD I2C (1602 hoặc 2004) dùng chung bus I2C.
+ *   2. Hiển thị thông số trực quan lên màn hình LCD I2C (bus riêng GPIO10/11).
  *   3. Gửi dữ liệu telemetry định kỳ lên MQTT Broker để Server AI (DRL Model) chạy mô phỏng
  *      và so sánh hiệu năng điện năng tiêu thụ với Baseline.
  *   4. Lắng nghe phản hồi từ AI Server để hiển thị trạng thái điều khiển mô phỏng (Setpoint, Damper) lên LCD.
@@ -36,16 +36,19 @@
 #define MQTT_PUB_TOPIC   "sensor/indoor"       // Topic gửi dữ liệu cảm biến
 #define MQTT_SUB_TOPIC   "remote-control/#"    // Topic nhận phản hồi điều khiển từ AI (để hiển thị LCD)
 
-// 3. Cấu hình chân kết nối phần cứng (Pin Definitions)
-#define LCD_SDA          10    // Chân SDA nối LCD (Physical Pin 16 -> GPIO10)
-#define LCD_SCL          11    // Chân SCL nối LCD (Physical Pin 17 -> GPIO11)
-#define SCD_SDA          8     // Chân SDA nối cảm biến SCD30 (Physical Pin 12 -> GPIO8)
-#define SCD_SCL          9     // Chân SCL nối cảm biến SCD30 (Physical Pin 15 -> GPIO9)
-#define PIN_RGB_WS2812   48    // Chân điều khiển LED RGB WS2812B tích hợp trên board ESP32-S3
+// 3. Chân GPIO — theo schematic PCB (ESP32-S3-N16R8)
+//    LCD I2C : bus riêng GPIO10/11
+//    SCD30   : GPIO8 (SDA) + GPIO9 (SCL) — bus riêng Wire1
+//    PMS7003 : GPIO16 (RX) + GPIO17 (TX)
+//    WS2812  : GPIO48 (LED RGB onboard module ESP32-S3, không nằm trên PCB sensor)
+#define LCD_SDA          10    // LCD SDA (Physical Pin 16)
+#define LCD_SCL          11    // LCD SCL (Physical Pin 17)
+#define SCD_SDA          8     // SCD30 SDA (Physical Pin 12)
+#define SCD_SCL          9     // SCD30 SCL (Physical Pin 15)
+#define PIN_RGB_WS2812   48    // WS2812 onboard ESP32-S3 dev module
 
-// Cấu hình chân UART cho cảm biến bụi PMS7003
-#define PMS_RX           17    // ESP32 RX <- nối TX của PMS7003
-#define PMS_TX           16    // ESP32 TX -> nối RX của PMS7003 (nếu cần gửi lệnh)
+#define PMS_RX           16    // ESP32 RX <- PMS TX (Physical Pin 9)
+#define PMS_TX           17    // ESP32 TX -> PMS RX (Physical Pin 10)
 
 // =========================================================================
 // 🔄 THÔNG SỐ VÀ BIẾN TOÀN CỤC
@@ -339,24 +342,19 @@ void setup() {
   Serial.println("  KHOI DONG NODE CAM BIEN HVAC SMART-IOT + LCD MONITOR");
   Serial.println("=======================================================");
 
-  // Khởi tạo bus I2C cho LCD
-  Serial.printf("[I2C LCD] Khoi tao bus: SDA -> GPIO%d, SCL -> GPIO%d...\n", LCD_SDA, LCD_SCL);
+  // Bus I2C riêng cho LCD (GPIO10/11)
+  Serial.printf("[I2C LCD] SDA=GPIO%d SCL=GPIO%d\n", LCD_SDA, LCD_SCL);
   Wire.begin(LCD_SDA, LCD_SCL);
-
-  // Khởi tạo màn hình LCD I2C
   lcd.init();
-  Wire.begin(LCD_SDA, LCD_SCL); // Gọi lại để đảm bảo chân LCD được cấu hình đúng sau lcd.init()
   lcd.backlight();
   lcd.setCursor(0, 0);
   lcd.print("Smart HVAC Node ");
   lcd.setCursor(0, 1);
   lcd.print("Initializing... ");
 
-  // Khởi tạo bus I2C cho cảm biến SCD30
-  Serial.printf("[I2C SCD30] Khoi tao bus: SDA -> GPIO%d, SCL -> GPIO%d...\n", SCD_SDA, SCD_SCL);
+  // Bus I2C riêng cho SCD30 (GPIO8/9)
+  Serial.printf("[I2C SCD30] SDA=GPIO%d SCL=GPIO%d\n", SCD_SDA, SCD_SCL);
   Wire1.begin(SCD_SDA, SCD_SCL);
-
-  // Khởi tạo cảm biến SCD30
   Serial.println("[SCD30] Dang ket noi voi cam bien...");
   if (airSensor.begin(Wire1) == false) {
     Serial.println("[LOI] Khong tim thay cam bien SCD30!");
@@ -446,30 +444,26 @@ void loop() {
 
 void updateSystemLED() {
   if (WiFi.status() != WL_CONNECTED) {
-    // Nhấp nháy màu vàng cam khi mất WiFi
     static bool blink = false;
     blink = !blink;
-    if (blink) neopixelWrite(PIN_RGB_WS2812, 60, 20, 0); // Vàng cam dịu
+    if (blink) neopixelWrite(PIN_RGB_WS2812, 60, 20, 0);
     else neopixelWrite(PIN_RGB_WS2812, 0, 0, 0);
   } else if (!mqttClient.connected()) {
-    // Nhấp nháy màu đỏ khi mất MQTT
     static bool blink = false;
     blink = !blink;
-    if (blink) neopixelWrite(PIN_RGB_WS2812, 80, 0, 0); // Đỏ nháy
+    if (blink) neopixelWrite(PIN_RGB_WS2812, 80, 0, 0);
     else neopixelWrite(PIN_RGB_WS2812, 0, 0, 0);
   } else if (!receivedAiState) {
-    // Sáng màu xanh dương nhạt (cyan) khi đợi dữ liệu AI từ Server
     neopixelWrite(PIN_RGB_WS2812, 0, 40, 40);
   } else {
-    // Hiển thị màu theo chế độ hoạt động của điều hòa
     if (!aiPower || aiOperationMode.equalsIgnoreCase("off")) {
-      neopixelWrite(PIN_RGB_WS2812, 0, 0, 0); // Tắt hẳn LED khi điều hòa tắt
+      neopixelWrite(PIN_RGB_WS2812, 0, 0, 0);
     } else if (aiOperationMode.equalsIgnoreCase("auto")) {
-      neopixelWrite(PIN_RGB_WS2812, 50, 0, 70); // Tím (Auto AI điều phối)
+      neopixelWrite(PIN_RGB_WS2812, 50, 0, 70);
     } else if (aiOperationMode.equalsIgnoreCase("cool")) {
-      neopixelWrite(PIN_RGB_WS2812, 0, 0, 75); // Xanh dương (Làm lạnh)
+      neopixelWrite(PIN_RGB_WS2812, 0, 0, 75);
     } else if (aiOperationMode.equalsIgnoreCase("heat")) {
-      neopixelWrite(PIN_RGB_WS2812, 70, 15, 0); // Đỏ cam (Làm nóng)
+      neopixelWrite(PIN_RGB_WS2812, 70, 15, 0);
     }
   }
 }

@@ -26,7 +26,7 @@ class HybridSimulator:
     T_U, T_L = 24.5, 22.0   # °C ngưỡng nhiệt độ
     PHI_U    = 0.60          # ngưỡng RH
 
-    def __init__(self, fixed_occupancy: int = 0):
+    def __init__(self, fixed_occupancy: int = 1):
         self.fixed_occupancy = fixed_occupancy  # 1 = phòng luôn có 1 người
         self.envelope = BuildingEnvelopeModel()
         self.humidity  = HumidityModel()

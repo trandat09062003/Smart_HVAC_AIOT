@@ -83,12 +83,11 @@ ESP32 (LCD hiển thị) ◄──MQTT───┘              React Dashboard
 
 | File / thư mục | Vai trò |
 |----------------|---------|
-| `train.py` | **Script train chính** — DDPG Hà Nội, 1 người, fine-tune từ Seoul |
-| `train.ipynb` | Notebook Colab GPU (clone repo → `python train.py`) |
-| `checkpoints_v2/` | Pretrain Seoul (bài báo gốc) — `actor.weights.h5`, `critic.weights.h5` |
-| `checkpoints_hanoi/` | Model fine-tune Hà Nội — dùng deploy |
-| `data/weather_gen.py` | Sinh dữ liệu thời tiết Seoul (benchmark) |
-| `data/hanoi_weather_gen.py` | Sinh dữ liệu thời tiết Hà Nội (train) |
+| `train.py` | **Script train** — DDPG theo paper, 1 người cố định |
+| `train.ipynb` | Notebook Colab GPU |
+| `config.py` | Hyperparameters (5000 ep, tháng 5–10, …) |
+| `checkpoints/` | `actor.weights.h5`, `critic.weights.h5` |
+| `data/weather_gen.py` | Sinh dữ liệu thời tiết mô phỏng |
 | `simulator/hybrid_sim.py` | Môi trường lai 5 mô hình (vỏ nhà, RH, CO₂, PM, HVAC) |
 | `simulator/building_env.py` | Mô hình nhiệt vỏ nhà |
 | `simulator/humidity_model.py` | Mô hình độ ẩm |
@@ -139,7 +138,9 @@ ESP32 (LCD hiển thị) ◄──MQTT───┘              React Dashboard
 | `paper_reference/main.py` | Entry point cũ, không dùng |
 | `paper_reference/ai_mqtt_bridge.py` | Bridge thử nghiệm, không dùng |
 | `paper_reference/evaluate.py` | Script eval cũ (DDPG v1), thay bằng `scripts/replicate_and_compare.py` |
-| `train_hanoi.py` / `train_hanoi.ipynb` | Gộp vào `train.py` + `train.ipynb` |
+| `train_hanoi.py` / `train_hanoi.ipynb` | Đổi tên → `train.py` + `train.ipynb` |
+| `checkpoints_v2/`, `checkpoints_hanoi/` | Gộp → `checkpoints/` |
+| `data/hanoi_weather_gen.py` | Gộp → `data/weather_gen.py` |
 
 ---
 

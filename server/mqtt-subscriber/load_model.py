@@ -9,7 +9,7 @@ import numpy as np
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 CHECKPOINT = os.getenv(
     "CHECKPOINT_DIR",
-    os.path.join(ROOT, "paper_reference", "checkpoints_hanoi"),
+    os.path.join(ROOT, "paper_reference", "checkpoints"),
 )
 OUTPUT = os.path.join(os.path.dirname(__file__), "actor_weights.npz")
 

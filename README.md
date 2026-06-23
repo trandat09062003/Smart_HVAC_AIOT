@@ -37,10 +37,10 @@ Khi không load được trọng số model, server tự chuyển sang **rule-ba
 | Linh kiện | Giao tiếp | GPIO | Ghi chú |
 |-----------|-----------|------|---------|
 | ESP32-S3-N16R8 | — | — | Vi điều khiển chính |
-| Sensirion SCD30 | I²C | SDA=8, SCL=9 | Nhiệt độ, độ ẩm, CO₂ |
-| LCD 1602/2004 | I²C | SDA=8, SCL=9 | Chung bus I²C với SCD30 |
-| Plantower PMS5003 | UART | RX=17, TX=16 | PM₂.₅ (PMS RX → ESP TX) |
-| WS2812 RGB | — | 48 | LED trạng thái onboard |
+| Sensirion SCD30 | I²C (Wire1) | SDA=8, SCL=9 | Bus riêng, địa chỉ 0x61 |
+| LCD 1602/2004 | I²C (Wire) | SDA=10, SCL=11 | Bus riêng, địa chỉ 0x27 |
+| Plantower PMS5003 | UART | RX=**16**, TX=**17** | PMS TX → ESP RX (GPIO16) |
+| WS2812 RGB | — | 48 | LED onboard module ESP32-S3 (không trên PCB sensor) |
 
 Chi tiết PCB: [`docs/hardware_design_guide.md`](docs/hardware_design_guide.md)
 
@@ -58,14 +58,13 @@ Smart_HVAC_AIOT/
 │   ├── building_simulator.py      Mô phỏng tòa nhà + điện năng thiết bị
 │   └── load_model.py              Export actor .h5 → .npz
 ├── paper_reference/
-│   ├── checkpoints_v2/            Pretrain Seoul (bài báo gốc)
-│   ├── checkpoints_hanoi/         Fine-tune khí hậu Hà Nội, 1 người
-│   ├── drl/                       DDPG agent, networks, replay buffer
-│   ├── simulator/                 Hybrid simulator (5 mô hình con)
-│   ├── data/                      weather_gen.py, hanoi_weather_gen.py
+│   ├── config.py                  Hyperparameters (paper + 1 occupant)
+│   ├── checkpoints/               Model đã train
 │   ├── train.py                   Huấn luyện DDPG (local CPU)
 │   ├── train.ipynb                Huấn luyện Colab GPU
-│   └── checkpoints_hanoi/         Model Hà Nội (deploy)
+│   ├── data/weather_gen.py
+│   ├── drl/                       DDPG agent
+│   └── simulator/                 Hybrid simulator
 ├── src/                           Dashboard React (Digital Twin)
 ├── scripts/replicate_and_compare.py
 ├── docs/
@@ -99,8 +98,7 @@ Smart_HVAC_AIOT/
 
 | Thư mục | Mô tả |
 |---------|-------|
-| `checkpoints_v2/` | Pretrain Seoul — baseline bài báo |
-| `checkpoints_hanoi/` | Fine-tune Hà Nội, occupancy cố định 1 người |
+| `checkpoints/` | Model DDPG đã train (1 người) |
 | `server/.../actor_weights.npz` | Runtime NumPy (generate, không commit) |
 
 ### Benchmark (7 ngày sim, tháng 7)
@@ -121,7 +119,7 @@ Backup weights: [Google Drive](https://drive.google.com/drive/folders/1Z_hq9zdnd
 
 **Yêu cầu:** Python 3.12+, TensorFlow 2.x, NumPy, Matplotlib
 
-### Hà Nội (triển khai thực tế)
+### Huấn luyện (theo bài báo, 1 người)
 
 ```bash
 cd paper_reference
@@ -130,14 +128,12 @@ python train.py
 
 Colab GPU: mở `paper_reference/train.ipynb`, bật T4, chạy all cells.
 
-### Seoul (pretrain bài báo gốc)
-
-Checkpoint có sẵn tại `checkpoints_v2/` — dùng làm điểm khởi đầu fine-tune Hà Nội, không cần train lại.
+Mặc định paper: **5000 episode**, tháng **5–10**, **30 ngày/tháng**. Train nhanh: `TRAIN_EPISODES=200 DAYS_PER_MONTH=5 python train.py`
 
 ### Export cho server
 
 ```bash
-set CHECKPOINT_DIR=paper_reference/checkpoints_hanoi
+set CHECKPOINT_DIR=paper_reference/checkpoints
 python server/mqtt-subscriber/load_model.py
 ```
 

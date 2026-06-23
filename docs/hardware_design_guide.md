@@ -19,17 +19,17 @@ Sơ đồ đấu nối chi tiết từ Module vi điều khiển **ESP32-S3-WROO
 | **EN (CHIP_PU)** | Input | Nút bấm Reset + Mạch RC | Thiết lập chân Reset cứng | Kéo lên 3.3V qua điện trở $10\text{ k}\Omega$, tụ $1\mu\text{F}$ xuống GND để trễ nguồn. |
 | **GPIO0** | Input | Nút bấm BOOT (Strapping) | Vào chế độ nạp Firmware | Kéo lên 3.3V qua điện trở $10\text{ k}\Omega$ để chạy bình thường. |
 | **GPIO4** | Output | Ngõ vào Optocoupler EL817 | Điều khiển đóng ngắt Relay | Chân kéo xuống qua điện trở $10\text{ k}\Omega$ chống nhiễu khi khởi động. |
-| **GPIO8** | I/O | Chân SDA của cảm biến SCD30 | Đường truyền dữ liệu I2C | Kéo lên 3.3V bằng điện trở $4.7\text{ k}\Omega$. |
-| **GPIO9** | I/O | Chân SCL của cảm biến SCD30 | Đường truyền xung nhịp I2C | Kéo lên 3.3V bằng điện trở $4.7\text{ k}\Omega$. |
-| **GPIO10** | Output | Anode của LED Cooling | LED xanh báo trạng thái Làm mát | Nối tiếp điện trở hạn dòng $330\,\Omega$. |
-| **GPIO11** | Output | Anode của LED Heating | LED đỏ báo trạng thái Làm ấm | Nối tiếp điện trở hạn dòng $330\,\Omega$. |
+| **GPIO8** | I/O | SCD30 SDA | I2C bus SCD30 (Wire1) | Pull-up 4.7 kΩ lên 3.3V |
+| **GPIO9** | I/O | SCD30 SCL | I2C bus SCD30 (Wire1) | Pull-up 4.7 kΩ lên 3.3V |
+| **GPIO10** | I/O | LCD SDA | I2C bus LCD (Wire) | Địa chỉ LCD thường 0x27 |
+| **GPIO11** | I/O | LCD SCL | I2C bus LCD (Wire) | Bus riêng, không chung SCD30 |
 | **GPIO19** | I/O | Chân D- của cổng USB-C | Đường truyền USB Native D- | Nối tiếp điện trở hạn dòng $22\,\Omega$. |
 | **GPIO20** | I/O | Chân D+ của cổng USB-C | Đường truyền USB Native D+ | Nối tiếp điện trở hạn dòng $22\,\Omega$. |
 | **GPIO43 (TXD0)** | Output | Chân TX của cổng UART nạp | UART Debug | Đưa ra Pin Header 4-pin dự phòng. |
 | **GPIO44 (RXD0)** | Input | Chân RX của cổng UART nạp | UART Debug | Đưa ra Pin Header 4-pin dự phòng. |
-| **GPIO48** | Output | Chân DIN của LED WS2812B | LED RGB Onboard đa chỉ thị | Cần nối tiếp điện trở $330\,\Omega$ trước chân DIN. |
-| **GPIO16 (RXD1)** | Input | Chân TXD của PMS7003 | Nhận dữ liệu cảm biến bụi (PMS_TX) | Kết nối nối tiếp để nhận luồng dữ liệu từ cảm biến. |
-| **GPIO17 (TXD1)** | Output | Chân RXD của PMS7003 | Gửi lệnh tới cảm biến bụi (PMS_RX) | Kết nối nối tiếp để gửi lệnh điều khiển (tùy chọn). |
+| **GPIO48** | Output | WS2812 DIN (module ESP32-S3) | LED RGB trạng thái firmware | Trên dev module, không có trên PCB sensor |
+| **GPIO16 (RXD1)** | Input | PMS7003 TX | ESP32 nhận dữ liệu bụi | Serial2 RX |
+| **GPIO17 (TXD1)** | Output | PMS7003 RX | ESP32 gửi lệnh PMS (tùy chọn) | Serial2 TX |
 
 ### B. Cấu hình chân Strapping cực kỳ quan trọng
 ESP32-S3 sử dụng một số chân để xác định chế độ boot khi khởi động (Strapping Pins). Đảm bảo thiết kế phần cứng tuân thủ:
@@ -168,7 +168,7 @@ Trước khi gửi file đi gia công tại nhà máy (ví dụ JLCPCB), hãy th
 
 - [ ] **1. Kiểm tra Ăng-ten Wi-Fi:** Vùng ăng-ten của module ESP32-S3 có nằm nhô ra ngoài viền PCB hoặc không có bất kỳ đường dây đồng/mặt đồng GND nào phủ trực tiếp bên dưới không?
 - [ ] **2. Tụ lọc nhiễu:** Tất cả các tụ gốm $100\text{nF}$ có được đặt cực kỳ gần (khoảng cách $< 2\text{mm}$) các chân cấp nguồn VDD/3V3 của ESP32 và cảm biến SCD30 chưa?
-- [ ] **3. Trở kéo I2C:** Đã vẽ thêm 2 điện trở $4.7\text{ k}\Omega$ kéo lên đường 3.3V cho chân SDA (`GPIO8`) và SCL (`GPIO9`) chưa? (SCD30 truyền nhận dạng open-drain bắt buộc phải có trở kéo).
+- [ ] **3. Trở kéo I2C:** Pull-up 4.7 kΩ cho SCD30 (GPIO8/9) và LCD (GPIO10/11) — hai bus I2C tách riêng.
 - [ ] **4. Đường viền bo (Keepout/Board Outline):** Đã đóng kín bo bằng một đường khép kín hoàn chỉnh chưa? Các góc mạch nên được bo tròn (Radius $R = 2.0\text{mm} - 3.0\text{mm}$) để tránh sắc nhọn gây nguy hiểm khi cầm nắm.
 - [ ] **5. Ký hiệu chữ (Silkscreen):** 
   - Đã ký hiệu rõ cực dương/âm của nguồn DC vào chưa (Ví dụ: ghi chữ `VIN+ 9-24V` và `GND` rõ ràng)?

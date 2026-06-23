@@ -1,6 +1,6 @@
 """
 Benchmark DDPG vs RBC vs Random on the hybrid simulator.
-Outputs: docs/comparison_results.md and docs/comparison_chart.png
+Outputs: docs/comparison_results.txt and docs/comparison_chart.png
 """
 import os
 import sys
@@ -14,17 +14,16 @@ matplotlib.use("Agg")
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PAPER_REF = os.path.join(ROOT, "paper_reference")
 DOCS = os.path.join(ROOT, "docs")
-CHECKPOINT = os.path.join(PAPER_REF, "checkpoints_v2")
 
 sys.path.insert(0, PAPER_REF)
 os.chdir(PAPER_REF)
 
-from data.weather_gen import SeoulWeatherGenerator  # noqa: E402
+from config import CHECKPOINT_DIR, OCCUPANCY_FIXED, STATE_MAX, STATE_MIN  # noqa: E402
+from data.weather_gen import WeatherGenerator  # noqa: E402
 from drl.ddpg_agent import DDPGAgentV2  # noqa: E402
 from simulator.hybrid_sim import HybridSimulator  # noqa: E402
 
-STATE_MIN = np.array([0, -5, 0.002, 0, 390, 0, 15, 0.003, 400, 0], dtype=np.float32)
-STATE_MAX = np.array([24, 40, 0.025, 900, 510, 80, 35, 0.022, 2000, 50], dtype=np.float32)
+CHECKPOINT = os.path.join(PAPER_REF, CHECKPOINT_DIR)
 
 
 def norm(s):
@@ -36,8 +35,8 @@ def ddpg2sim(a):
 
 
 def run_simulation(policy_type, steps=672, seed=99):
-    sim = HybridSimulator()
-    weather = SeoulWeatherGenerator(seed=seed)
+    sim = HybridSimulator(fixed_occupancy=OCCUPANCY_FIXED)
+    weather = WeatherGenerator(seed=seed)
     agent = None
 
     if policy_type == "DRL":
@@ -123,10 +122,10 @@ def main():
     savings_vs_rbc = (rbc_stats["daily_energy"] - drl_stats["daily_energy"]) / rbc_stats["daily_energy"] * 100.0
     savings_vs_rnd = (rnd_stats["daily_energy"] - drl_stats["daily_energy"]) / rnd_stats["daily_energy"] * 100.0
 
-    report_path = os.path.join(DOCS, "comparison_results.md")
+    report_path = os.path.join(DOCS, "comparison_results.txt")
     with open(report_path, "w", encoding="utf-8") as f:
         f.write(
-            f"# HVAC DRL Benchmark\n\n"
+            f"# HVAC DRL Benchmark (1 occupant)\n\n"
             f"| Metric | DRL | RBC | Random |\n|---|---:|---:|---:|\n"
             f"| Daily energy (kWh/day) | {drl_stats['daily_energy']:.3f} | {rbc_stats['daily_energy']:.3f} | {rnd_stats['daily_energy']:.3f} |\n"
             f"| Avg reward/step | {drl_stats['avg_reward']:.3f} | {rbc_stats['avg_reward']:.3f} | {rnd_stats['avg_reward']:.3f} |\n"

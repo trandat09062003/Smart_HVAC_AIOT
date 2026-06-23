@@ -123,13 +123,13 @@ class DDPGAgentV2:
                 float(a_loss) if a_loss is not None else None)
 
     # ------------------------------------------------------------------
-    def save(self, path='checkpoints_v2'):
+    def save(self, path='checkpoints'):
         os.makedirs(path, exist_ok=True)
         self.actor.save_weights(f'{path}/actor.weights.h5')
         self.critic.save_weights(f'{path}/critic.weights.h5')
         print(f"  [Saved v2] -> {path}/")
 
-    def load(self, path='checkpoints_v2'):
+    def load(self, path='checkpoints'):
         self.actor.load_weights(f'{path}/actor.weights.h5')
         self.critic.load_weights(f'{path}/critic.weights.h5')
         self.target_actor.set_weights(self.actor.get_weights())
