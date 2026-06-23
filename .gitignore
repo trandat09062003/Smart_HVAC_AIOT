@@ -24,6 +24,7 @@ venv/
 paper_reference/logs/
 paper_reference/.venv/
 paper_reference/miniconda3/
+paper_reference/checkpoints/
 
 # Generated at runtime
 server/mqtt-subscriber/actor_weights.npz
