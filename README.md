@@ -141,5 +141,4 @@ Sơ đồ chân chi tiết và hướng dẫn làm mạch PCB có tại: `docs/h
 
 ---
 
-## Tác giả và Bản quyền
-Dự án được phát triển và vận hành bởi đội ngũ kỹ sư hệ thống nhúng và IoT. Mã nguồn được phát hành dưới giấy phép MIT.
+
